@@ -43,6 +43,7 @@ GitFlowAI/
 │       ├── routes/          # Express route definitions
 │       ├── middlewares/     # Custom middleware
 │       └── server.js        # Entry point
+├── package.json             # Root workspace config
 ├── docker-compose.yml
 ├── Dockerfile
 └── .gitignore
@@ -59,17 +60,14 @@ GitFlowAI/
 - PostgreSQL (optional – only needed when adding DB features)
 - Docker & Docker Compose (optional – for containerised deployment)
 
-### 1. Clone and install
+### 1. Install (single command)
 
 ```bash
 cd GitFlowAI
-
-# Install backend dependencies
-cd backend && npm install && cd ..
-
-# Install frontend dependencies
-cd frontend && npm install && cd ..
+npm install
 ```
+
+This installs dependencies for both frontend and backend via npm workspaces.
 
 ### 2. Configure environment
 
@@ -79,27 +77,17 @@ cp backend/.env.example backend/.env
 
 Edit `backend/.env` and fill in your API keys (not required for the health check).
 
-### 3. Run the backend
+### 3. Run both servers (single command)
 
 ```bash
-cd backend
 npm run dev
 ```
 
-The API starts at **http://localhost:5000**.
-
-### 4. Run the frontend (in a separate terminal)
-
-```bash
-cd frontend
-npm run dev
-```
-
-The application opens at **http://localhost:5173**.
+This starts the backend (port 5001) and frontend (port 5173) concurrently.
 
 ### 5. Verify health
 
-- **API health:** `GET http://localhost:5000/api/health`
+- **API health:** `GET http://localhost:5001/api/health`
 - **Frontend:** Open http://localhost:5173 and click the "Check Health" button.
 
 ---
@@ -110,7 +98,7 @@ The application opens at **http://localhost:5173**.
 # Build and start all services
 docker compose up --build
 
-# Backend: http://localhost:5000
+# Backend: http://localhost:5001
 # Frontend: http://localhost:3000
 ```
 
@@ -118,20 +106,22 @@ docker compose up --build
 
 ## Available Scripts
 
-### Backend
+Run all commands from the **root** directory.
 
-| Command           | Description                        |
-| ----------------- | ---------------------------------- |
-| `npm run dev`     | Start with hot-reload (nodemon)    |
-| `npm start`       | Start in production                |
+| Command           | Description                                    |
+| ----------------- | ---------------------------------------------- |
+| `npm install`     | Install all dependencies (both apps)           |
+| `npm run dev`     | Start both backend + frontend concurrently     |
+| `npm run build`   | Build frontend for production                  |
+| `npm start`       | Start backend in production mode               |
 
-### Frontend
+### Per-workspace commands
 
-| Command           | Description                        |
-| ----------------- | ---------------------------------- |
-| `npm run dev`     | Start Vite dev server              |
-| `npm run build`   | Build for production               |
-| `npm run preview` | Preview production build           |
+```bash
+npm run dev -w backend    # Backend only
+npm run dev -w frontend   # Frontend only
+npm run build -w frontend # Build frontend only
+```
 
 ---
 
