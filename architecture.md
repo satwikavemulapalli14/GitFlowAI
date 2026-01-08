@@ -25,8 +25,8 @@
                                     │
                           HTTP (REST API)
                           ┌──────┴──────┐
-                          │  Vite Proxy  │  (Dev)
-                          │  /api → :5000│
+                           │  Vite Proxy  │  (Dev)
+                           │  /api → :5001│
                           └─────────────┘
                                     │
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -113,7 +113,7 @@ Browser                          Vite Dev Server           Express API
   │                                    │                       │
   │  GET /api/health                   │                       │
   │ ─────────────────────────────────► │                       │
-  │                                    │  Proxy to :5000       │
+  │                                    │  Proxy to :5001       │
   │                                    │ ────────────────────► │
   │                                    │                       │
   │                                    │  healthController     │

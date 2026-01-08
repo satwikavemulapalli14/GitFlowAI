@@ -2,7 +2,7 @@ import axios from 'axios';
 
 /**
  * Axios instance with a base URL.
- * In development, Vite proxies /api requests to the backend (port 5000).
+ * In development, Vite proxies /api requests to the backend (port 5001).
  * In production, set VITE_API_URL to the actual API origin.
  */
 const api = axios.create({
