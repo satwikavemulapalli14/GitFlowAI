@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  min-height: 100vh;
+@layer base {
+  body {
+    @apply min-h-screen bg-gray-50 text-gray-900 antialiased;
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+}
+
+@layer components {
+  .sidebar-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900;
+  }
+
+  .sidebar-link-active {
+    @apply bg-primary-50 text-primary-700;
+  }
 }

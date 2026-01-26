@@ -63,22 +63,19 @@ GitFlowAI automatically reviews pull requests using OpenAI, providing actionable
 |------|---------|
 | `healthRoutes.js` | `GET /api/health` → healthController |
 
-#### `backend/src/middlewares/`
+#### `backend/src/middleware/`
 
 | File | Purpose |
 |------|---------|
 | `errorHandler.js` | Catches all errors, returns `{ success, message, stack }` JSON |
+| `notFoundHandler.js` | Returns 404 JSON for unmatched routes |
+| `logger.js` | Custom request logger with timestamp and duration |
+| `validate.js` | Request body/query/params validation against a schema |
 
-#### Middleware stack order (in `server.js`):
+#### Middleware stack order (in `app.js`):
 
 ```
-helmet()           → security headers
-cors()             → allow origins localhost:5173, localhost:3000
-express.json()     → body parsing (10mb limit)
-morgan('dev')      → request logging (dev only)
-routes             → /api/health
-404 handler        → unknown routes
-errorHandler       → central error handler
+helmet → cors → bodyParser → morgan (dev) → logger → routes → notFoundHandler → errorHandler
 ```
 
 ### Frontend — `frontend/`
@@ -102,8 +99,8 @@ errorHandler       → central error handler
 | File | Purpose |
 |------|---------|
 | `main.jsx` | ReactDOM entry — wraps App in `<BrowserRouter>` |
-| `App.jsx` | Route definitions (`/` → Home) |
-| `index.css` | Tailwind directives (`@tailwind base/components/utilities`) |
+| `App.jsx` | Route definitions — public (Login) and authenticated (MainLayout) routes |
+| `index.css` | Tailwind directives + custom utility classes |
 
 #### `frontend/src/api/`
 
@@ -111,17 +108,36 @@ errorHandler       → central error handler
 |------|---------|
 | `axios.js` | Pre-configured Axios instance — base URL `/api`, 15s timeout, JWT token injection via request interceptor, 401 redirect via response interceptor |
 
-#### `frontend/src/components/`
+#### `frontend/src/components/layout/`
 
 | File | Purpose |
 |------|---------|
-| `HealthCheck.jsx` | Button that calls `GET /api/health` and displays the JSON response in a formatted `<pre>` block |
+| `MainLayout.jsx` | App shell — composes Navbar, Sidebar, `<Outlet />`, and Footer |
+| `Navbar.jsx` | Top navigation bar with mobile hamburger toggle and user dropdown |
+| `Sidebar.jsx` | Collapsible side navigation with icons, active link highlighting, mobile overlay |
+| `Footer.jsx` | Simple footer with copyright and quick links |
+
+#### `frontend/src/components/ui/`
+
+| File | Purpose |
+|------|---------|
+| `Button.jsx` | Reusable button — variants (primary/secondary/outline/ghost/danger), sizes (sm/md/lg), loading spinner |
+| `Card.jsx` | Card container with `CardHeader`, `CardTitle`, `CardBody` named exports |
+| `Modal.jsx` | Modal dialog with overlay, close button, header/body/footer sections |
+| `Table.jsx` | Data table with sortable columns, custom cell rendering, empty state |
+| `Loader.jsx` | Loading spinner — inline and fullPage variants |
 
 #### `frontend/src/pages/`
 
 | File | Purpose |
 |------|---------|
-| `Home.jsx` | Landing page — project title, tagline, auto-backend-connection indicator (green/yellow/red dot), three feature cards, HealthCheck component |
+| `Login.jsx` | Login page — centered card, GitHub sign-in button, guest link |
+| `Dashboard.jsx` | Dashboard — stats cards (Total/Open/Reviewed/Pending PRs), recent activity table |
+| `Repositories.jsx` | Repository list — search filter, sortable table, add button |
+| `PullRequests.jsx` | PR management — status filter tabs, PR cards with review/view actions |
+| `ReviewResults.jsx` | Review results — summary stats, sortable reviews table |
+| `Settings.jsx` | Settings — profile, notification, and API key sections with save |
+| `Profile.jsx` | User profile — avatar, stats grid, recent activity list |
 
 ---
 
@@ -280,10 +296,26 @@ GitFlowAI/
 │   │   ├── api/
 │   │   │   └── axios.js              # Axios instance + interceptors
 │   │   ├── components/
-│   │   │   └── HealthCheck.jsx       # Health check UI component
+│   │   │   ├── layout/
+│   │   │   │   ├── MainLayout.jsx    # Shell: Navbar + Sidebar + Outlet + Footer
+│   │   │   │   ├── Navbar.jsx        # Top bar with user dropdown
+│   │   │   │   ├── Sidebar.jsx       # Side navigation with icons
+│   │   │   │   └── Footer.jsx        # Copyright footer
+│   │   │   └── ui/
+│   │   │       ├── Button.jsx        # Reusable button with variants
+│   │   │       ├── Card.jsx          # Card container with named slots
+│   │   │       ├── Modal.jsx         # Modal dialog with overlay
+│   │   │       ├── Table.jsx         # Sortable data table
+│   │   │       └── Loader.jsx        # Loading spinner
 │   │   ├── pages/
-│   │   │   └── Home.jsx              # Landing page
-│   │   ├── App.jsx                   # Router setup
+│   │   │   ├── Login.jsx             # Login with GitHub OAuth
+│   │   │   ├── Dashboard.jsx         # Stats + recent activity
+│   │   │   ├── Repositories.jsx      # Repository list with search
+│   │   │   ├── PullRequests.jsx      # PR management with filters
+│   │   │   ├── ReviewResults.jsx     # Review summary and history
+│   │   │   ├── Settings.jsx          # Account settings sections
+│   │   │   └── Profile.jsx           # User profile and stats
+│   │   ├── App.jsx                   # Route definitions
 │   │   ├── main.jsx                  # ReactDOM entry point
 │   │   └── index.css                 # Tailwind directives
 │   ├── index.html
