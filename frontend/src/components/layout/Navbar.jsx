@@ -1,12 +1,19 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-export default function Navbar({ onToggleSidebar }) {
+export default function Navbar({ onToggleSidebar, user }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSignOut = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
+  const initial = user?.displayName?.[0] || user?.username?.[0] || 'U';
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-gray-200 bg-white px-4 shadow-sm">
-      {/* Left section */}
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
@@ -22,15 +29,27 @@ export default function Navbar({ onToggleSidebar }) {
         </Link>
       </div>
 
-      {/* Right section */}
       <div className="relative flex items-center gap-4">
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
           className="flex items-center gap-2 rounded-lg p-1 hover:bg-gray-100"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
-            U
-          </div>
+          {user?.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.displayName || user.username}
+              className="h-9 w-9 rounded-full"
+            />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
+              {initial}
+            </div>
+          )}
+          {user && (
+            <span className="hidden text-sm font-medium text-gray-700 md:inline">
+              {user.displayName || user.username}
+            </span>
+          )}
         </button>
 
         {dropdownOpen && (
@@ -52,7 +71,10 @@ export default function Navbar({ onToggleSidebar }) {
                 Settings
               </Link>
               <hr className="my-1 border-gray-200" />
-              <button className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50">
+              <button
+                onClick={handleSignOut}
+                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50"
+              >
                 Sign out
               </button>
             </div>

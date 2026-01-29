@@ -30,7 +30,12 @@ const config = {
   },
 
   database: {
-    url: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/gitflowai',
+    url: process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/gitflowai',
+    pool: {
+      max: parseInt(process.env.DB_POOL_MAX, 10) || 10,
+      idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT, 10) || 30000,
+      connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT, 10) || 5000,
+    },
   },
 
   jwt: {

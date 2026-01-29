@@ -43,7 +43,8 @@ GitFlowAI automatically reviews pull requests using OpenAI, providing actionable
 
 | File | Purpose |
 |------|---------|
-| `server.js` | Express app entry — mounts middleware, routes, starts listener |
+| `app.js` | Express app factory — configures middleware stack and registers routes |
+| `server.js` | Entry point — imports app, starts listener |
 
 #### `backend/src/config/`
 
@@ -55,27 +56,71 @@ GitFlowAI automatically reviews pull requests using OpenAI, providing actionable
 
 | File | Purpose |
 |------|---------|
-| `healthController.js` | `getHealth()` — returns uptime, memory, platform, node version |
+| `healthController.js` | `getHealth()` — returns status, version |
+| `dbController.js` | `getHealth()`, `getStats()`, `runMigrations()` — database endpoints |
+| `authController.js` | `githubCallback()`, `me()`, `logout()` — GitHub OAuth + JWT handlers |
 
 #### `backend/src/routes/`
 
 | File | Purpose |
 |------|---------|
 | `healthRoutes.js` | `GET /api/health` → healthController |
+| `dbRoutes.js` | `GET /api/db/*` → dbController (health, stats, migrate) |
+| `authRoutes.js` | `GET /api/auth/*` → authController (github, callback, me, logout) |
+| `index.js` | Auto-loader — discovers route modules and registers them |
+
+#### `backend/src/database/`
+
+| File | Purpose |
+|------|---------|
+| `connection.js` | PostgreSQL pool — `query()`, `getClient()`, `testConnection()` |
+| `migrate.js` | Migration runner — reads and applies `.sql` files in order |
+
+#### `backend/src/database/migrations/`
+
+| File | Purpose |
+|------|---------|
+| `001_initial_schema.sql` | Creates 5 tables (users, repositories, pull_requests, reviews, comments), indexes, foreign keys, and `updated_at` auto-trigger |
+
+#### `backend/src/models/`
+
+| File | Purpose |
+|------|---------|
+| `index.js` | Central export for all models |
+| `User.js` | CRUD for `users` — `findByGithubId()`, `findByUsername()`, `create()`, `update()`, `delete()` |
+| `Repository.js` | CRUD for `repositories` — `findByOwner()`, `findByFullName()`, `countByOwner()` |
+| `PullRequest.js` | CRUD for `pull_requests` — `findByRepository()`, `findByState()`, `findByRepoAndNumber()` |
+| `Review.js` | CRUD for `reviews` — `findByPullRequest()`, `findByReviewer()`, `averageScore()` |
+| `Comment.js` | CRUD for `comments` — `findByReview()`, `findByFile()`, `countBySeverity()` |
 
 #### `backend/src/middleware/`
 
 | File | Purpose |
 |------|---------|
+| `auth.js` | `authenticate()` — verifies JWT Bearer token, attaches `req.user`; `optionalAuth()` — same but non-fatal |
 | `errorHandler.js` | Catches all errors, returns `{ success, message, stack }` JSON |
 | `notFoundHandler.js` | Returns 404 JSON for unmatched routes |
 | `logger.js` | Custom request logger with timestamp and duration |
 | `validate.js` | Request body/query/params validation against a schema |
 
+#### `backend/src/services/`
+
+| File | Purpose |
+|------|---------|
+| `healthService.js` | `getHealth()` — returns `{ status: 'OK', version }` from package.json |
+| `authService.js` | `generateToken(user)` — signs JWT with user payload; `verifyToken(token)` — validates and decodes |
+| `passport.js` | GitHub OAuth strategy — configures Passport with `passport-github2`, upserts user on auth |
+
+#### `backend/src/utils/`
+
+| File | Purpose |
+|------|---------|
+| `asyncHandler.js` | Wraps async route handlers, forwards rejected promises to Express error handler |
+
 #### Middleware stack order (in `app.js`):
 
 ```
-helmet → cors → bodyParser → morgan (dev) → logger → routes → notFoundHandler → errorHandler
+helmet → cors → bodyParser → morgan (dev) → logger → passport.initialize() → routes → notFoundHandler → errorHandler
 ```
 
 ### Frontend — `frontend/`
@@ -147,7 +192,7 @@ helmet → cors → bodyParser → morgan (dev) → logger → routes → notFou
 
 - **Node.js** 18+
 - **npm** 9+
-- **PostgreSQL** 16 — optional, needed when database features are added
+- **PostgreSQL** 16 — required for database features
 - **Docker Desktop** — optional, for containerised deployment
 
 ### 1. Clone and install
@@ -166,9 +211,25 @@ npm install
 cp backend/.env.example backend/.env
 ```
 
-Edit `backend/.env` with your own values (not required for the health check to work).
+Edit `backend/.env` with your own values. Database connection will use the `DATABASE_URL` value. By default, it connects as the `postgres` user via local socket (no password required on macOS Homebrew installs).
 
-### 3. Run both servers
+### 3. Create the database
+
+```bash
+createdb gitflowai
+```
+
+Alternatively, connect via psql and run `CREATE DATABASE gitflowai;`.
+
+### 4. Run migrations
+
+```bash
+node backend/src/database/migrate.js
+```
+
+This creates all 5 tables (`users`, `repositories`, `pull_requests`, `reviews`, `comments`), indexes, foreign keys, and the auto-updated_at trigger.
+
+### 5. Run both servers
 
 ```bash
 npm run dev
@@ -181,28 +242,18 @@ This starts both servers concurrently:
 | Backend  | `http://localhost:5001`     |
 | Frontend | `http://localhost:5173`     |
 
-### 4. Verify
+### 6. Verify
 
 - **API:** `curl http://localhost:5001/api/health`
-- **Frontend:** Open `http://localhost:5173` and click the **"Check Health"** button
+- **Frontend:** Open `http://localhost:5173` and sign in with GitHub
+- **DB Health:** `curl http://localhost:5001/api/db/health`
 
 ### Expected API response
 
 ```json
 {
-  "success": true,
-  "message": "Server is running",
-  "data": {
-    "uptime": 2.02,
-    "timestamp": "2026-07-06T07:53:23.100Z",
-    "environment": "development",
-    "nodeVersion": "v25.8.1",
-    "platform": "darwin",
-    "memoryUsage": {
-      "heapUsed": "8MB",
-      "heapTotal": "13MB"
-    }
-  }
+  "status": "OK",
+  "version": "1.0.0"
 }
 ```
 
@@ -232,11 +283,18 @@ npm run start -w backend      # Start backend only
 
 ## API Endpoints
 
-| Method | Path | Description | Response |
-|--------|------|-------------|----------|
-| `GET` | `/` | Welcome message | `{ "message": "Welcome to GitFlowAI API" }` |
-| `GET` | `/api/health` | Server health check | `{ success, message, data: { uptime, timestamp, environment, nodeVersion, platform, memoryUsage } }` |
-| `GET` | `/*` | Unknown route | `404 { success: false, message }` |
+| Method | Path | Auth | Description | Response |
+|--------|------|------|-------------|----------|
+| `GET` | `/` | No | Welcome message | `{ success, message, version }` |
+| `GET` | `/api/health` | No | Server health check | `{ status: "OK", version }` |
+| `GET` | `/api/db/health` | No | Database connectivity test | `{ success, data: { connected, latencyMs, version } }` |
+| `GET` | `/api/db/stats` | No | Row counts per table | `{ success, data: { tables, total } }` |
+| `POST` | `/api/db/migrate` | No | Run pending migrations | `{ success, message, data: { applied } }` |
+| `GET` | `/api/auth/github` | No | Redirect to GitHub OAuth | 302 → github.com |
+| `GET` | `/api/auth/github/callback` | No | OAuth callback, returns JWT | 302 → frontend with `?token=` |
+| `GET` | `/api/auth/me` | JWT | Current user profile | `{ success, data: { id, username, email, ... } }` |
+| `POST` | `/api/auth/logout` | JWT | Logout confirmation | `{ success, message }` |
+| `GET` | `/*` | No | Unknown route | `404 { success: false, message }` |
 
 ---
 
@@ -246,12 +304,13 @@ npm run start -w backend      # Start backend only
 |----------|---------|----------|-------------|
 | `PORT` | `5001` | No | Backend server port |
 | `NODE_ENV` | `development` | No | Environment mode |
-| `DATABASE_URL` | — | Future | PostgreSQL connection string |
-| `JWT_SECRET` | — | Future | JWT signing secret |
+| `DATABASE_URL` | `postgresql://postgres@localhost:5432/gitflowai` | Yes | PostgreSQL connection string |
+| `DB_POOL_MAX` | `10` | No | Max database pool connections |
+| `JWT_SECRET` | — | Yes | JWT signing secret |
 | `JWT_EXPIRES_IN` | `7d` | No | JWT token expiry |
-| `GITHUB_CLIENT_ID` | — | Future | GitHub OAuth app client ID |
-| `GITHUB_CLIENT_SECRET` | — | Future | GitHub OAuth app secret |
-| `GITHUB_CALLBACK_URL` | — | Future | OAuth callback URL |
+| `GITHUB_CLIENT_ID` | — | Yes (for auth) | GitHub OAuth app client ID |
+| `GITHUB_CLIENT_SECRET` | — | Yes (for auth) | GitHub OAuth app secret |
+| `GITHUB_CALLBACK_URL` | `http://localhost:5001/api/auth/github/callback` | Yes (for auth) | OAuth callback URL |
 | `OPENAI_API_KEY` | — | Future | OpenAI API key |
 
 ---
@@ -280,6 +339,25 @@ The `Dockerfile` uses a multi-stage build:
 ```bash
 docker build -t gitflowai .
 docker run -p 5001:5001 gitflowai
+```
+
+---
+
+## GitHub OAuth Setup
+
+To enable GitHub authentication, create a GitHub OAuth App:
+
+1. Go to **Settings → Developer settings → OAuth Apps → New OAuth App**
+2. Fill in:
+   - **Application name:** `GitFlowAI (Dev)`
+   - **Homepage URL:** `http://localhost:5173`
+   - **Authorization callback URL:** `http://localhost:5001/api/auth/github/callback`
+3. Click **Register application**
+4. Copy the **Client ID** and **Client Secret** into `backend/.env`:
+
+```env
+GITHUB_CLIENT_ID=your-client-id
+GITHUB_CLIENT_SECRET=your-client-secret
 ```
 
 ---
@@ -328,12 +406,33 @@ GitFlowAI/
 │       ├── config/
 │       │   └── index.js              # Env config loader
 │       ├── controllers/
-│       │   └── healthController.js   # Health check handler
+│       │   ├── healthController.js   # Health check handler
+│       │   └── dbController.js       # DB health / stats / migrate
 │       ├── routes/
-│       │   └── healthRoutes.js       # /api/health route
-│       ├── middlewares/
-│       │   └── errorHandler.js       # Central error handler
-│       └── server.js                 # Express entry point
+│       │   ├── healthRoutes.js       # /api/health route
+│       │   ├── dbRoutes.js           # /api/db routes
+│       │   └── index.js              # Auto route loader
+│       ├── middleware/
+│       │   ├── errorHandler.js       # Central error handler
+│       │   ├── logger.js             # Request logger
+│       │   ├── notFoundHandler.js    # 404 handler
+│       │   └── validate.js           # Request validation
+│       ├── database/
+│       │   ├── connection.js         # PostgreSQL pool
+│       │   ├── migrate.js            # Migration runner
+│       │   └── migrations/
+│       │       └── 001_initial_schema.sql
+│       ├── models/
+│       │   ├── index.js              # Model exports
+│       │   ├── User.js
+│       │   ├── Repository.js
+│       │   ├── PullRequest.js
+│       │   ├── Review.js
+│       │   └── Comment.js
+│       ├── utils/
+│       │   └── asyncHandler.js       # Async error wrapper
+│       ├── app.js                    # Express app setup
+│       └── server.js                 # Entry point (listener)
 │
 ├── package.json                      # Root workspace
 ├── Dockerfile                        # Multi-stage build

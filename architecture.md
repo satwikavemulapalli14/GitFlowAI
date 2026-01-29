@@ -16,10 +16,17 @@
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │  │
 │  │  │   Pages  │  │Componen- │  │  Axios   │  │  Router  │    │  │
 │  │  │          │  │  ts      │  │ Instance │  │ (React   │    │  │
-│  │  │ - Home   │  │ - Health │  │ w/       │  │  Router) │    │  │
-│  │  │ - Login  │  │   Check  │  │ Intercep-│  │          │    │  │
-│  │  │ - PRs    │  │ - Layout │  │ tors     │  │          │    │  │
-│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │  │
+│  │  │ - Login  │  │ - UI     │  │ w/ Bearer│  │  Router) │    │  │
+│  │  │ - Dash-  │  │ - Layout │  │  Intercep│  │          │    │  │
+│  │  │   board  │  │          │  │ tors     │  │          │    │  │
+│  │  │ - Re-    │  └──────────┘  └──────────┘  └──────────┘    │  │
+│  │  │   pos    │                                                │  │
+│  │  │ - PRs    │                                                │  │
+│  │  │ - Re-    │                                                │  │
+│  │  │   views  │                                                │  │
+│  │  │ - Sett-  │                                                │  │
+│  │  │   ings   │                                                │  │
+│  │  └──────────┘                                                │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
@@ -39,17 +46,26 @@
 │  │  │  Routes  │──│Controllers│──│ Middle-  │  │  Config  │    │  │
 │  │  │          │  │          │  │  wares   │  │          │    │  │
 │  │  │- /health │  │- health  │  │- Error   │  │- env     │    │  │
-│  │  │- /auth   │  │  Controller│ │  Handler │  │  loader  │    │  │
-│  │  │- /reviews│  │- auth    │  │- Auth    │  │- DB      │    │  │
-│  │  └──────────┘  │  Controller│ │ (JWT)   │  │  config  │    │  │
-│  │                └──────────┘  │- Rate    │  └──────────┘    │  │
-│  │                              │  Limiter │                   │  │
-│  │  ┌──────────────────────┐    │- Logger  │                   │  │
-│  │  │     Services         │    │  (Morgan)│                   │  │
-│  │  │ - authService        │    └──────────┘                   │  │
-│  │  │ - reviewService      │                                    │  │
-│  │  │ - openaiService      │                                    │  │
+│  │  │- /auth   │  │- auth    │  │- Auth    │  │  loader  │    │  │
+│  │  │- /db     │  │- db      │  │  (JWT)   │  │- DB pool │    │  │
+│  │  └──────────┘  └──────────┘  │- Logger  │  │- OAuth   │    │  │
+│  │                              │- 404     │  │  config  │    │  │
+│  │  ┌──────────────────────┐    │- Validate│  └──────────┘    │  │
+│  │  │     Services         │    └──────────┘                   │  │
+│  │  │ - authService (JWT)  │                                    │  │
+│  │  │ - healthService      │                                    │  │
+│  │  │ - passport (GitHub)  │                                    │  │
 │  │  └──────────────────────┘                                    │  │
+│  │                                                              │  │
+│  │  ┌─────────────────────────────────────────────────────────┐ │  │
+│  │  │  Models (raw SQL, no ORM)                               │ │  │
+│  │  │  User - Repository - PullRequest - Review - Comment     │ │  │
+│  │  └─────────────────────────────────────────────────────────┘ │  │
+│  │                                                              │  │
+│  │  ┌─────────────────────────────────────────────────────────┐ │  │
+│  │  │  Database: PostgreSQL Pool (connection.js)              │ │  │
+│  │  │  Migration Runner (migrate.js)                          │ │  │
+│  │  └─────────────────────────────────────────────────────────┘ │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
@@ -59,12 +75,17 @@
 ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
 │     PostgreSQL      │  │   GitHub OAuth      │  │   OpenAI API        │
 │                     │  │                     │  │                     │
-│  ┌───────────────┐  │  │  - User login       │  │  - GPT-4o model     │
-│  │  users        │  │  │  - Token exchange    │  │  - PR diff analysis │
-│  ├───────────────┤  │  │  - Webhook events    │  │  - Code review      │
-│  │  reviews      │  │  └─────────────────────┘  │    generation       │
-│  ├───────────────┤  │                           └─────────────────────┘
-│  │  repositories │  │
+│  gitflowai DB       │  │  - User login       │  │  - GPT-4o model     │
+│  ┌───────────────┐  │  │  - Token exchange    │  │  - PR diff analysis │
+│  │  users        │  │  └─────────────────────┘  │  - Code review      │
+│  ├───────────────┤  │                           │    generation       │
+│  │  repositories │  │                           └─────────────────────┘
+│  ├───────────────┤  │
+│  │  pull_requests│  │
+│  ├───────────────┤  │
+│  │  reviews      │  │
+│  ├───────────────┤  │
+│  │  comments     │  │
 │  └───────────────┘  │
 └─────────────────────┘
 ```
@@ -75,56 +96,80 @@
 
 ### 1. Client Layer (Frontend)
 
-| Component | Responsibility |
-|-----------|----------------|
-| **Pages** | Route-level components (`/`, `/login`, `/prs/:id`) that compose UI from child components |
-| **Components** | Reusable, single-responsibility UI blocks (`HealthCheck`, `Layout`, `PRCard`, `ReviewPanel`) |
-| **Axios Instance** | Pre-configured HTTP client with base URL, auth token injection, and 401 redirect |
-| **React Router** | Client-side routing with lazy-loaded routes |
+| Component | Files | Responsibility |
+|-----------|-------|----------------|
+| **Pages** | Login, Dashboard, Repositories, PullRequests, ReviewResults, Settings, Profile | Route-level views that compose UI from child components |
+| **UI Components** | Button, Card, Modal, Table, Loader | Reusable, single-responsibility UI primitives with variant/size props |
+| **Layout Components** | MainLayout, Navbar, Sidebar, Footer | App shell with navigation, user dropdown, responsive sidebar |
+| **Axios Instance** | `api/axios.js` | Pre-configured HTTP client with Bearer token injection and 401 redirect |
+| **Router** | `App.jsx` | Public route (`/login`) and authenticated routes (MainLayout wrapper) |
 
-**Tech:** React 18, Vite 5, Tailwind CSS 3, Axios 1.7
+**Tech:** React 18, Vite 5, Tailwind CSS 3, Axios 1.7, React Router 6
 
 ### 2. API Layer (Backend)
 
-| Layer | Responsibility |
-|-------|----------------|
-| **Routes** | URL path definitions; delegate to controllers |
-| **Controllers** | Parse request, call services, format HTTP response |
-| **Services** | Business logic (auth, review generation, OpenAI calls) |
-| **Middleware** | Cross-cutting concerns (auth, error handling, logging, rate limiting) |
-| **Config** | Centralised environment variable loader with sensible defaults |
+| Layer | Files | Responsibility |
+|-------|-------|----------------|
+| **Routes** | `routes/*` | URL path definitions; auto-discovered by `routes/index.js` |
+| **Controllers** | `controllers/*` | Parse request, call services, format HTTP response |
+| **Services** | `services/*` | Business logic (JWT auth, GitHub OAuth, health check) |
+| **Middleware** | `middleware/*` | Cross-cutting concerns (auth/JWT, error handling, logging, request validation) |
+| **Models** | `models/*` | Raw SQL CRUD per table (no ORM); static methods on plain objects |
+| **Database** | `database/*` | pg Pool wrapper; SQL migration runner |
+| **Config** | `config/index.js` | Centralised env loader with sensible defaults |
 
-**Tech:** Node.js, Express 4, Morgan (logging), Helmet (security headers), CORS
+**Tech:** Node.js 20, Express 4, Passport.js (GitHub OAuth), JWT, pg (node-postgres)
 
 ### 3. Data Layer
 
 | Store | Purpose |
 |-------|---------|
-| **PostgreSQL** | Persistent storage for users, repositories, and review results |
-| **GitHub OAuth** | Third-party authentication and PR data source |
-| **OpenAI API** | AI model for generating pull request reviews |
+| **PostgreSQL** | Persistent storage for users, repositories, pull_requests, reviews, comments |
+| **GitHub OAuth** | Third-party authentication via Passport.js strategy |
+| **OpenAI API** | AI model for generating pull request reviews (future) |
 
 ---
 
-## Request Flow (Example: Health Check)
+## Authentication Flow
 
 ```
-Browser                          Vite Dev Server           Express API
-  │                                    │                       │
-  │  GET /api/health                   │                       │
-  │ ─────────────────────────────────► │                       │
-  │                                    │  Proxy to :5001       │
-  │                                    │ ────────────────────► │
-  │                                    │                       │
-  │                                    │  healthController     │
-  │                                    │  getHealth()          │
-  │                                    │    ├─ process.uptime()│
-  │                                    │    ├─ os.platform()   │
-  │                                    │    └─ memoryUsage()   │
-  │                                    │                       │
-  │  ◄─────────────────────────────────│  JSON 200 OK          │
-  │  ◄─────────────────────────────────│  {success, data}      │
-  │                                    │                       │
+Browser                          Express API                  GitHub
+  │                                    │                        │
+  │  Click "Sign in with GitHub"       │                        │
+  │ ────────────────────────────────►  │                        │
+  │                                    │  302 Redirect to       │
+  │  Redirect to GitHub OAuth          │  github.com/login/...  │
+  │ ◄───────────────────────────────── │                        │
+  │                                    │                        │
+  │  User authorizes app               │                        │
+  │ ─────────────────────────────────────────────────────────►  │
+  │                                    │                        │
+  │  GitHub callback with code         │                        │
+  │ ◄─────────────────────────────────────────────────────────  │
+  │                                    │                        │
+  │  Callback: GET /api/auth/github/   │                        │
+  │  callback?code=xxx                 │                        │
+  │ ────────────────────────────────►  │                        │
+  │                                    │  Exchange code for     │
+  │                                    │  access token          │
+  │                                    │ ───────────────────►   │
+  │                                    │ ◄────────────────────  │
+  │                                    │                        │
+  │                                    │  Find or create user   │
+  │                                    │  in PostgreSQL         │
+  │                                    │                        │
+  │                                    │  Generate JWT          │
+  │                                    │                        │
+  │  302 Redirect to frontend          │                        │
+  │  /login?token=<JWT>                │                        │
+  │ ◄───────────────────────────────── │                        │
+  │                                    │                        │
+  │  Frontend stores JWT in            │                        │
+  │  localStorage                      │                        │
+  │                                    │                        │
+  │  Subsequent API calls include      │                        │
+  │  Authorization: Bearer <JWT>      │                        │
+  │ ────────────────────────────────►  │                        │
 ```
 
 ---
@@ -134,63 +179,84 @@ Browser                          Vite Dev Server           Express API
 ```
 GitFlowAI/
 │
-├── frontend/                        # React SPA
+├── frontend/                         # React SPA
 │   ├── public/
-│   │   └── vite.svg                 # App favicon
+│   │   └── vite.svg                  # Favicon
 │   ├── src/
 │   │   ├── api/
-│   │   │   └── axios.js             # Axios instance + interceptors
-│   │   ├── components/              # Reusable UI components
-│   │   │   ├── HealthCheck.jsx      # Health status display
-│   │   │   └── Layout.jsx           # App shell (header/footer)
-│   │   ├── pages/                   # Route-level components
-│   │   │   ├── Home.jsx             # Landing page
-│   │   │   ├── Login.jsx            # GitHub OAuth login
-│   │   │   └── PRDetails.jsx        # Single PR review view
-│   │   ├── hooks/                   # Custom React hooks
-│   │   │   └── useAuth.js           # Auth state management
-│   │   ├── context/                 # React context providers
-│   │   │   └── AuthContext.jsx      # Auth state context
-│   │   ├── App.jsx                  # Router setup
-│   │   ├── main.jsx                 # Entry point
-│   │   └── index.css                # Tailwind directives
+│   │   │   └── axios.js              # Axios instance + JWT interceptors
+│   │   ├── components/
+│   │   │   ├── layout/
+│   │   │   │   ├── MainLayout.jsx    # Shell: Navbar + Sidebar + Outlet + Footer
+│   │   │   │   ├── Navbar.jsx        # Top bar with user dropdown
+│   │   │   │   ├── Sidebar.jsx       # Collapsible side navigation
+│   │   │   │   └── Footer.jsx        # Copyright footer
+│   │   │   └── ui/
+│   │   │       ├── Button.jsx        # 5 variants, 3 sizes
+│   │   │       ├── Card.jsx          # Named slot container
+│   │   │       ├── Modal.jsx         # Overlay dialog
+│   │   │       ├── Table.jsx         # Sortable data table
+│   │   │       └── Loader.jsx        # Inline/fullPage spinner
+│   │   ├── pages/
+│   │   │   ├── Login.jsx             # GitHub OAuth login + token capture
+│   │   │   ├── Dashboard.jsx         # Stats + recent activity
+│   │   │   ├── Repositories.jsx      # Repository list
+│   │   │   ├── PullRequests.jsx      # PR management
+│   │   │   ├── ReviewResults.jsx     # Review history
+│   │   │   ├── Settings.jsx          # Account settings
+│   │   │   └── Profile.jsx           # User profile
+│   │   ├── App.jsx                   # Route definitions
+│   │   ├── main.jsx                  # ReactDOM entry
+│   │   └── index.css                 # Tailwind directives
 │   ├── index.html
-│   ├── vite.config.js               # Vite config + API proxy
-│   ├── tailwind.config.js           # Tailwind theme
-│   └── postcss.config.js            # PostCSS plugins
+│   ├── vite.config.js                # Vite + proxy config
+│   ├── tailwind.config.js            # Tailwind theme
+│   └── postcss.config.js             # PostCSS plugins
 │
-├── backend/                         # Express REST API
+├── backend/                          # Express REST API
 │   └── src/
 │       ├── config/
-│       │   └── index.js             # Env configuration loader
+│       │   └── index.js              # Env config loader (DB, JWT, GitHub, OpenAI)
 │       ├── controllers/
-│       │   ├── healthController.js  # GET /api/health
-│       │   ├── authController.js    # GitHub OAuth handlers
-│       │   └── reviewController.js  # PR review handlers
+│       │   ├── healthController.js   # GET /api/health
+│       │   ├── dbController.js       # GET /api/db/*
+│       │   └── authController.js     # GitHub OAuth + JWT handlers
 │       ├── routes/
-│       │   ├── index.js             # Route aggregator
-│       │   ├── healthRoutes.js      # Health check routes
-│       │   ├── authRoutes.js        # Authentication routes
-│       │   └── reviewRoutes.js      # Review routes
+│       │   ├── index.js              # Auto route loader
+│       │   ├── healthRoutes.js       # /api/health
+│       │   ├── dbRoutes.js           # /api/db (health, stats, migrate)
+│       │   └── authRoutes.js         # /api/auth (github, callback, me, logout)
 │       ├── services/
-│       │   ├── authService.js       # GitHub OAuth logic
-│       │   ├── reviewService.js     # PR review orchestration
-│       │   └── openaiService.js     # OpenAI API client
-│       ├── models/                  # Database models (Sequelize)
-│       │   ├── User.js
-│       │   ├── Repository.js
-│       │   └── Review.js
-│       ├── middlewares/
-│       │   ├── errorHandler.js      # Central error handler
-│       │   ├── auth.js              # JWT verification
-│       │   └── rateLimiter.js       # Rate limiting
+│       │   ├── passport.js           # GitHub OAuth strategy
+│       │   ├── authService.js        # JWT sign/verify
+│       │   └── healthService.js      # Health status
+│       ├── middleware/
+│       │   ├── auth.js               # JWT authenticate + optionalAuth
+│       │   ├── errorHandler.js       # Central error handler
+│       │   ├── logger.js             # Request logger
+│       │   ├── notFoundHandler.js    # 404 handler
+│       │   └── validate.js           # Request validation
+│       ├── models/
+│       │   ├── index.js              # Model exports
+│       │   ├── User.js               # users table CRUD
+│       │   ├── Repository.js         # repositories table CRUD
+│       │   ├── PullRequest.js        # pull_requests table CRUD
+│       │   ├── Review.js             # reviews table CRUD
+│       │   └── Comment.js            # comments table CRUD
 │       ├── database/
-│       │   ├── connection.js        # DB connection setup
-│       │   └── migrations/          # DB migrations
-│       └── server.js                # Express app entry
+│       │   ├── connection.js         # pg Pool wrapper
+│       │   ├── migrate.js            # Migration runner
+│       │   └── migrations/
+│       │       └── 001_initial_schema.sql
+│       ├── utils/
+│       │   └── asyncHandler.js       # Async error wrapper
+│       ├── app.js                    # Express app setup
+│       └── server.js                 # Entry point (listener)
 │
-├── docker-compose.yml               # Multi-service orchestration
-├── Dockerfile                        # Production image
+├── package.json                      # Root workspace
+├── Dockerfile                        # Multi-stage build
+├── docker-compose.yml                # Service orchestration
+├── architecture.md                   # This file
 ├── .gitignore
 └── README.md
 ```
@@ -202,13 +268,32 @@ GitFlowAI/
 | Decision | Rationale |
 |----------|-----------|
 | **React + Vite** | Fast HMR, modern tooling, smaller bundle than CRA |
-| **JavaScript (not TypeScript)** | Faster iteration for interview discussion; explicit JSDoc for clarity |
-| **Express** | Minimal, well-known Node.js framework with large ecosystem |
-| **PostgreSQL** | Reliable, ACID-compliant; great for structured review data |
-| **Axios** | Cleaner API than fetch; interceptors for auth token injection |
-| **Helmet + CORS** | Security best-practices out of the box |
+| **JavaScript (not TypeScript)** | Faster iteration; explicit JSDoc for clarity |
+| **Express** | Minimal, well-known Node.js framework |
+| **PostgreSQL + raw pg** | Full SQL control; no ORM overhead; interview-friendly |
+| **Passport.js GitHub Strategy** | Mature, well-tested OAuth integration |
+| **JWT (stateless auth)** | No server-side sessions; works well with REST APIs |
+| **Axios** | Cleaner API than fetch; interceptor for Bearer token |
 | **MVC Pattern** | Separation of concerns; easy to test and extend |
-| **Docker** | Consistent dev/prod environments; simple deployment |
+| **Auto route loader** | Zero-config route registration; drop a file, it's wired |
+| **Docker** | Consistent dev/prod environments |
+
+---
+
+## API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/` | No | Welcome message |
+| GET | `/api/health` | No | Health check (uptime, version) |
+| GET | `/api/db` | No | DB endpoints overview |
+| GET | `/api/db/health` | No | DB connectivity test |
+| GET | `/api/db/stats` | No | Row counts per table |
+| POST | `/api/db/migrate` | No | Run pending migrations |
+| GET | `/api/auth/github` | No | Redirect to GitHub OAuth |
+| GET | `/api/auth/github/callback` | No | OAuth callback (exchanges code) |
+| GET | `/api/auth/me` | JWT | Current user profile |
+| POST | `/api/auth/logout` | JWT | Logout confirmation |
 
 ---
 

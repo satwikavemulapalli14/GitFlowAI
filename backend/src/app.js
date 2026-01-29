@@ -8,6 +8,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
+const passport = require('./services/passport');
 const config = require('./config');
 const logger = require('./middleware/logger');
 const registerRoutes = require('./routes');
@@ -39,6 +40,11 @@ if (config.env === 'development') {
   app.use(morgan('dev'));
 }
 app.use(logger);
+
+// ---------------------------------------------------------------------------
+// Passport (GitHub OAuth)
+// ---------------------------------------------------------------------------
+app.use(passport.initialize());
 
 // ---------------------------------------------------------------------------
 // Routes
