@@ -1,18 +1,25 @@
 import { useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { login, loginAsGuest, isAuthenticated, isGuest } = useAuth();
 
   useEffect(() => {
     const token = searchParams.get('token');
     if (token) {
-      localStorage.setItem('token', token);
+      login(token);
+    }
+  }, [searchParams, login]);
+
+  useEffect(() => {
+    if (isAuthenticated || isGuest) {
       navigate('/dashboard', { replace: true });
     }
-  }, [searchParams, navigate]);
+  }, [isAuthenticated, isGuest, navigate]);
 
   const handleGitHubLogin = () => {
     window.location.href = '/api/auth/github';
@@ -57,9 +64,12 @@ export default function Login() {
         </div>
 
         <p className="mt-6 text-center text-sm text-gray-500">
-          <Link to="/dashboard" className="font-medium text-primary-600 hover:text-primary-700">
+          <button
+            onClick={loginAsGuest}
+            className="font-medium text-primary-600 hover:text-primary-700"
+          >
             Continue as guest
-          </Link>
+          </button>
         </p>
       </div>
     </div>

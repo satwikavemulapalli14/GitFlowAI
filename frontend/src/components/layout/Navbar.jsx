@@ -1,13 +1,21 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axios';
 
-export default function Navbar({ onToggleSidebar, user }) {
+export default function Navbar({ onToggleSidebar }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const navigate = useNavigate();
+  const { user, logout, isAuthenticated } = useAuth();
 
-  const handleSignOut = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
+  const handleSignOut = async () => {
+    try {
+      if (isAuthenticated) {
+        await api.post('/auth/logout');
+      }
+    } catch {
+      // ignore network errors on logout
+    }
+    logout();
   };
 
   const initial = user?.displayName?.[0] || user?.username?.[0] || 'U';

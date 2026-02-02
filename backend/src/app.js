@@ -8,6 +8,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
+const session = require('express-session');
 const passport = require('./services/passport');
 const config = require('./config');
 const logger = require('./middleware/logger');
@@ -42,9 +43,23 @@ if (config.env === 'development') {
 app.use(logger);
 
 // ---------------------------------------------------------------------------
+// Session (for Passport OAuth flow)
+// ---------------------------------------------------------------------------
+app.use(session({
+  secret: config.jwt.secret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: config.env === 'production',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  },
+}));
+
+// ---------------------------------------------------------------------------
 // Passport (GitHub OAuth)
 // ---------------------------------------------------------------------------
 app.use(passport.initialize());
+app.use(passport.session());
 
 // ---------------------------------------------------------------------------
 // Routes

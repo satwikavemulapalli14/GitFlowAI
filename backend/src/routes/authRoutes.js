@@ -11,7 +11,7 @@ router.get(
   passport.authenticate('github', { scope: ['user:email', 'repo'] })
 );
 
-// GitHub OAuth callback
+// GitHub OAuth callback — Passport exchanges code for token & fetches profile
 router.get(
   '/github/callback',
   (req, res, next) => {
@@ -19,7 +19,6 @@ router.get(
     next();
   },
   passport.authenticate('github', {
-    session: false,
     failureRedirect: 'http://localhost:5173/login?error=github_auth_failed',
   }),
   authController.githubCallback

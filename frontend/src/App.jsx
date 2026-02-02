@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 import MainLayout from './components/layout/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -10,23 +12,24 @@ import Profile from './pages/Profile';
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<Login />} />
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<Login />} />
 
-      {/* Authenticated routes with MainLayout */}
-      <Route element={<MainLayout />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/repositories" element={<Repositories />} />
-        <Route path="/pull-requests" element={<PullRequests />} />
-        <Route path="/review-results" element={<ReviewResults />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/profile" element={<Profile />} />
-      </Route>
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/repositories" element={<Repositories />} />
+            <Route path="/pull-requests" element={<PullRequests />} />
+            <Route path="/review-results" element={<ReviewResults />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/profile" element={<Profile />} />
+          </Route>
+        </Route>
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </AuthProvider>
   );
 }
