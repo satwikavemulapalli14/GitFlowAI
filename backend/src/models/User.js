@@ -10,7 +10,7 @@ const User = {
 
   columns: `
     id, github_id, username, email, avatar_url,
-    display_name, bio, role, created_at, updated_at
+    display_name, bio, role, access_token, created_at, updated_at
   `,
 
   async findAll() {
@@ -45,13 +45,13 @@ const User = {
   },
 
   async create(data) {
-    const { github_id, username, email, avatar_url, display_name, bio, role } = data;
+    const { github_id, username, email, avatar_url, display_name, bio, role, access_token } = data;
     const result = await db.query(
       `INSERT INTO ${this.table}
-        (github_id, username, email, avatar_url, display_name, bio, role)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+        (github_id, username, email, avatar_url, display_name, bio, role, access_token)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING ${this.columns}`,
-      [github_id || null, username, email || null, avatar_url || null, display_name || null, bio || null, role || 'user']
+      [github_id || null, username, email || null, avatar_url || null, display_name || null, bio || null, role || 'user', access_token || null]
     );
     return result.rows[0];
   },
@@ -62,7 +62,7 @@ const User = {
     let idx = 1;
 
     for (const [key, value] of Object.entries(data)) {
-      if (['github_id', 'username', 'email', 'avatar_url', 'display_name', 'bio', 'role'].includes(key)) {
+      if (['github_id', 'username', 'email', 'avatar_url', 'display_name', 'bio', 'role', 'access_token'].includes(key)) {
         fields.push(`${key} = $${idx++}`);
         values.push(value);
       }
@@ -90,6 +90,23 @@ const User = {
   async count() {
     const result = await db.query(`SELECT COUNT(*)::int AS count FROM ${this.table}`);
     return result.rows[0].count;
+  },
+
+  async updateAccessToken(id, accessToken) {
+    const result = await db.query(
+      `UPDATE ${this.table} SET access_token = $1 WHERE id = $2
+       RETURNING ${this.columns}`,
+      [accessToken, id]
+    );
+    return result.rows[0] || null;
+  },
+
+  async findByGithubToken(githubToken) {
+    const result = await db.query(
+      `SELECT ${this.columns} FROM ${this.table} WHERE access_token = $1`,
+      [githubToken]
+    );
+    return result.rows[0] || null;
   },
 };
 

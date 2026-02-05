@@ -26,9 +26,11 @@ const authController = {
       });
     }
 
+    const { access_token, ...safeUser } = user;
+
     res.json({
       success: true,
-      data: user,
+      data: safeUser,
     });
   }),
 

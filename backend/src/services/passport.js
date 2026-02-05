@@ -35,6 +35,7 @@ passport.use(
             email,
             avatar_url: avatarUrl,
             display_name: profile.displayName || profile.username,
+            access_token: accessToken,
           });
         } else {
           user = await User.create({
@@ -43,10 +44,9 @@ passport.use(
             email,
             avatar_url: avatarUrl,
             display_name: profile.displayName || profile.username,
+            access_token: accessToken,
           });
         }
-
-        user.accessToken = accessToken;
         done(null, user);
       } catch (err) {
         done(err);
