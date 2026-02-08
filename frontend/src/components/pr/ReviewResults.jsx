@@ -1,19 +1,19 @@
-const severityConfig = {
+export const severityConfig = {
   critical: { class: 'bg-red-100 text-red-700 border-red-200', label: 'Critical' },
   major: { class: 'bg-orange-100 text-orange-700 border-orange-200', label: 'Major' },
   minor: { class: 'bg-yellow-100 text-yellow-700 border-yellow-200', label: 'Minor' },
 };
 
-const categoryConfig = {
-  bugs: { label: 'Bugs', color: 'text-red-600', bgColor: 'bg-red-50' },
-  security: { label: 'Security', color: 'text-orange-600', bgColor: 'bg-orange-50' },
-  performance: { label: 'Performance', color: 'text-blue-600', bgColor: 'bg-blue-50' },
-  readability: { label: 'Readability', color: 'text-purple-600', bgColor: 'bg-purple-50' },
-  maintainability: { label: 'Maintainability', color: 'text-teal-600', bgColor: 'bg-teal-50' },
-  codeSmells: { label: 'Code Smells', color: 'text-pink-600', bgColor: 'bg-pink-50' },
+export const categoryConfig = {
+  bugs: { label: 'Bugs', color: 'text-red-600', bgColor: 'bg-red-50', icon: null },
+  security: { label: 'Security', color: 'text-orange-600', bgColor: 'bg-orange-50', icon: null },
+  performance: { label: 'Performance', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: null },
+  readability: { label: 'Readability', color: 'text-purple-600', bgColor: 'bg-purple-50', icon: null },
+  maintainability: { label: 'Maintainability', color: 'text-teal-600', bgColor: 'bg-teal-50', icon: null },
+  codeSmells: { label: 'Code Smells', color: 'text-pink-600', bgColor: 'bg-pink-50', icon: null },
 };
 
-function scoreColor(score) {
+export function scoreColor(score) {
   if (score >= 80) return 'text-green-600';
   if (score >= 60) return 'text-yellow-600';
   return 'text-red-600';
@@ -25,7 +25,7 @@ function scoreRingColor(score) {
   return 'stroke-red-500';
 }
 
-function ScoreCircle({ score }) {
+export function ScoreCircle({ score }) {
   const r = 54;
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (score / 100) * circumference;
@@ -49,7 +49,7 @@ function ScoreCircle({ score }) {
   );
 }
 
-function IssueCard({ issue }) {
+export function IssueCard({ issue }) {
   const sev = severityConfig[issue.severity] || severityConfig.minor;
   return (
     <div className="border rounded-lg p-4 bg-white">
