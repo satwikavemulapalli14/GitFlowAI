@@ -1,3 +1,7 @@
+import { useState, useCallback } from 'react';
+import MonacoCodeEditor from './MonacoCodeEditor';
+import { languageFromFilename } from '../../utils/patchUtils';
+
 export const severityConfig = {
   critical: { class: 'bg-red-100 text-red-700 border-red-200', label: 'Critical' },
   major: { class: 'bg-orange-100 text-orange-700 border-orange-200', label: 'Major' },
@@ -50,28 +54,117 @@ export function ScoreCircle({ score }) {
 }
 
 export function IssueCard({ issue }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
   const sev = severityConfig[issue.severity] || severityConfig.minor;
+  const hasImprovedCode = !!issue.improvedCode;
+
+  const handleCopy = useCallback(async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard not available
+    }
+  }, []);
+
   return (
-    <div className="border rounded-lg p-4 bg-white">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${sev.class}`}>
-              {sev.label}
-            </span>
-            {issue.file && (
-              <span className="text-xs font-mono text-gray-500 truncate">{issue.file}</span>
-            )}
-            {issue.line && (
-              <span className="text-xs text-gray-400">line {issue.line}</span>
-            )}
-          </div>
-          <p className="text-sm text-gray-900">{issue.message}</p>
-          {issue.suggestion && (
-            <p className="mt-1 text-xs text-gray-500 italic">{issue.suggestion}</p>
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <svg
+            className={`h-4 w-4 text-gray-400 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${sev.class}`}>
+            {sev.label}
+          </span>
+          {issue.file && (
+            <span className="text-xs font-mono text-gray-500 truncate hidden sm:inline">{issue.file}</span>
+          )}
+          {issue.line && (
+            <span className="text-xs text-gray-400 hidden sm:inline">line {issue.line}</span>
+          )}
+          <span className="text-sm font-medium text-gray-900 truncate">
+            {issue.problem || issue.message}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {hasImprovedCode && (
+            <span className="text-xs text-primary-600 font-medium">Fix</span>
           )}
         </div>
-      </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-gray-200">
+          <div className="px-4 py-3 space-y-3">
+            <div>
+              <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Problem</h5>
+              <p className="text-sm text-gray-900">{issue.message}</p>
+            </div>
+
+            {issue.explanation && (
+              <div>
+                <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Explanation</h5>
+                <p className="text-sm text-gray-700">{issue.explanation}</p>
+              </div>
+            )}
+
+            {issue.suggestedFix && (
+              <div>
+                <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Suggested Fix</h5>
+                <p className="text-sm text-gray-700">{issue.suggestedFix}</p>
+              </div>
+            )}
+
+            {issue.file && (
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span className="font-mono">{issue.file}</span>
+                {issue.line && <span>line {issue.line}</span>}
+              </div>
+            )}
+          </div>
+
+          {hasImprovedCode && (
+            <div className="relative">
+              <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200">
+                <span className="text-xs font-medium text-gray-600">Improved Code</span>
+                <button
+                  onClick={() => handleCopy(issue.improvedCode)}
+                  className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  {copied ? (
+                    <>
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
+              <MonacoCodeEditor
+                code={issue.improvedCode}
+                language={languageFromFilename(issue.file || '')}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
