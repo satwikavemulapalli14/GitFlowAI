@@ -10,6 +10,7 @@ import PullRequestDetail from './pages/PullRequestDetail';
 import ReviewResults from './pages/ReviewResults';
 import ReviewHistory from './pages/ReviewHistory';
 import ReviewDetailById from './pages/ReviewDetailById';
+import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/review-results" element={<ReviewResults />} />
             <Route path="/reviews" element={<ReviewHistory />} />
             <Route path="/reviews/:id" element={<ReviewDetailById />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />
           </Route>
