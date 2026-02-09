@@ -10,12 +10,12 @@ For each file changed, review the diff carefully. Return a JSON object with this
 {
   "overallScore": <integer 0-100>,
   "summary": "<concise summary of the review>",
-  "bugs": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "suggestion": "<how to fix>" }],
-  "security": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "suggestion": "<how to fix>" }],
-  "performance": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "suggestion": "<how to fix>" }],
-  "readability": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "suggestion": "<how to fix>" }],
-  "maintainability": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "suggestion": "<how to fix>" }],
-  "codeSmells": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "suggestion": "<how to fix>" }]
+  "bugs": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "problem": "<short problem title>", "explanation": "<detailed explanation of why this is a problem>", "suggestedFix": "<text description of how to fix it>", "improvedCode": "<complete improved code snippet showing the fix>" }],
+  "security": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "problem": "<short problem title>", "explanation": "<detailed explanation>", "suggestedFix": "<text description>", "improvedCode": "<complete improved code snippet>" }],
+  "performance": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "problem": "<short problem title>", "explanation": "<detailed explanation>", "suggestedFix": "<text description>", "improvedCode": "<complete improved code snippet>" }],
+  "readability": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "problem": "<short problem title>", "explanation": "<detailed explanation>", "suggestedFix": "<text description>", "improvedCode": "<complete improved code snippet>" }],
+  "maintainability": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "problem": "<short problem title>", "explanation": "<detailed explanation>", "suggestedFix": "<text description>", "improvedCode": "<complete improved code snippet>" }],
+  "codeSmells": [{ "file": "<file-path>", "line": <number|null>, "severity": "critical"|"major"|"minor", "message": "<description>", "problem": "<short problem title>", "explanation": "<detailed explanation>", "suggestedFix": "<text description>", "improvedCode": "<complete improved code snippet>" }]
 }
 
 Rules:
@@ -24,7 +24,9 @@ Rules:
 - Only report actual issues you can see in the diff
 - Be specific about file paths and line numbers when possible
 - Provide actionable suggestions
-- Be constructive and professional`;
+- Be constructive and professional
+- The improvedCode field must contain the COMPLETE fixed code (not just the changed lines)
+- For improvedCode, write the code as it should appear after the fix`;
 
 function buildPrompt(repo, pr, changedFiles) {
   let prompt = `Repository: ${repo.fullName || repo}\n`;
@@ -61,7 +63,7 @@ async function callOpenAI(prompt, apiKey, signal) {
         { role: 'user', content: prompt },
       ],
       temperature: 0.3,
-      max_tokens: 4000,
+      max_tokens: 8000,
     }),
     signal,
   });

@@ -87,6 +87,66 @@ const Review = {
     return result.rows[0] || null;
   },
 
+  async findAllForUser(userId, { page = 1, perPage = 20, search = '', sort = 'completed_at', order = 'desc' } = {}) {
+    const conditions = ['r.reviewer_id = $1', "r.status = 'completed'"];
+    const params = [userId];
+    let idx = 2;
+
+    if (search) {
+      conditions.push(`(rp.full_name ILIKE $${idx} OR p.pr_number::text ILIKE $${idx} OR r.summary ILIKE $${idx})`);
+      params.push(`%${search}%`);
+      idx++;
+    }
+
+    const allowedSort = { completed_at: 'r.completed_at', score: 'r.score', created_at: 'r.created_at' };
+    const sortCol = allowedSort[sort] || 'r.completed_at';
+    const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
+
+    const where = conditions.join(' AND ');
+    const offset = (page - 1) * perPage;
+
+    const countResult = await db.query(
+      `SELECT COUNT(*)::int AS count
+       FROM ${this.table} r
+       LEFT JOIN pull_requests p ON r.pull_request_id = p.id
+       LEFT JOIN repositories rp ON p.repository_id = rp.id
+       WHERE ${where}`,
+      params
+    );
+
+    const dataResult = await db.query(
+      `SELECT r.id, r.score, r.summary, r.total_issues, r.completed_at, r.created_at,
+              rp.full_name AS repo_full_name, rp.name AS repo_name,
+              p.pr_number, p.title AS pr_title
+       FROM ${this.table} r
+       LEFT JOIN pull_requests p ON r.pull_request_id = p.id
+       LEFT JOIN repositories rp ON p.repository_id = rp.id
+       WHERE ${where}
+       ORDER BY ${sortCol} ${sortOrder} NULLS LAST
+       LIMIT $${idx} OFFSET $${idx + 1}`,
+      [...params, perPage, offset]
+    );
+
+    return { rows: dataResult.rows, total: countResult.rows[0].count };
+  },
+
+  async findByIdWithDetails(id) {
+    const result = await db.query(
+      `SELECT r.id, r.score, r.summary, r.total_issues, r.raw_output,
+              r.completed_at, r.created_at, r.status,
+              rp.full_name AS repo_full_name, rp.name AS repo_name,
+              rp.owner_name AS repo_owner, rp.url AS repo_url,
+              p.pr_number, p.title AS pr_title, p.state AS pr_state,
+              p.head_branch, p.base_branch
+       FROM ${this.table} r
+       LEFT JOIN pull_requests p ON r.pull_request_id = p.id
+       LEFT JOIN repositories rp ON p.repository_id = rp.id
+       WHERE r.id = $1`,
+      [id]
+    );
+    return result.rows[0] || null;
+  },
+
   async delete(id) {
     const result = await db.query(
       `DELETE FROM ${this.table} WHERE id = $1 RETURNING id`,
