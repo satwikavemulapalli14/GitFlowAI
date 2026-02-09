@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', authenticate, repositoriesController.list);
+router.get('/:id', authenticate, repositoriesController.getById);
 
 module.exports = {
   path: '/api/repositories',

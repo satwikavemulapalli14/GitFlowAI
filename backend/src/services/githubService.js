@@ -1,3 +1,5 @@
+const { Repository } = require('../models');
+
 const GITHUB_API_BASE = 'https://api.github.com';
 
 async function fetchFromGitHub(endpoint, accessToken, params = {}) {
@@ -25,7 +27,7 @@ async function fetchFromGitHub(endpoint, accessToken, params = {}) {
   const lastPage = parseLastPage(linkHeader);
 
   const data = await response.json();
-  return { data, lastPage };
+  return { data, lastPage, headers: response.headers };
 }
 
 function parseLastPage(linkHeader) {
@@ -34,7 +36,55 @@ function parseLastPage(linkHeader) {
   return match ? parseInt(match[1], 10) : null;
 }
 
+function mapRepoData(repo, ownerId) {
+  return {
+    github_id: repo.id,
+    name: repo.name,
+    full_name: repo.full_name,
+    description: repo.description,
+    url: repo.html_url,
+    default_branch: repo.default_branch,
+    owner_id: ownerId,
+    language: repo.language,
+    stars: repo.stargazers_count,
+    forks: repo.forks_count,
+    open_issues: repo.open_issues_count,
+    visibility: repo.visibility || (repo.private ? 'private' : 'public'),
+    owner_name: repo.owner?.login,
+    owner_avatar_url: repo.owner?.avatar_url,
+    is_active: true,
+  };
+}
+
 class GitHubService {
+  async syncUserRepos(accessToken, userId) {
+    let page = 1;
+    let synced = 0;
+
+    while (true) {
+      const result = await fetchFromGitHub('/user/repos', accessToken, {
+        page,
+        per_page: 100,
+        sort: 'updated',
+        direction: 'desc',
+        type: 'all',
+      });
+
+      const repos = result.data;
+      if (repos.length === 0) break;
+
+      for (const repo of repos) {
+        await Repository.upsert(repo.id, mapRepoData(repo, userId));
+        synced++;
+      }
+
+      if (!result.lastPage || page >= result.lastPage) break;
+      page++;
+    }
+
+    return synced;
+  }
+
   async getRepositories(accessToken, { page = 1, perPage = 10, search = '' } = {}) {
     let repos, totalCount;
 
@@ -86,7 +136,9 @@ class GitHubService {
           openPrCount,
           defaultBranch: repo.default_branch,
           url: repo.html_url,
-          private: repo.private,
+          visibility: repo.visibility || (repo.private ? 'private' : 'public'),
+          ownerName: repo.owner?.login,
+          ownerAvatarUrl: repo.owner?.avatar_url,
           updatedAt: repo.updated_at,
           createdAt: repo.created_at,
         };
@@ -96,17 +148,40 @@ class GitHubService {
     return { repos: enriched, totalCount };
   }
 
-  async getOpenPrCount(accessToken, fullName) {
+  async getRepoFromGitHub(accessToken, fullName) {
+    const result = await fetchFromGitHub(`/repos/${fullName}`, accessToken);
+
+    const repo = result.data;
+    let openPrCount = 0;
     try {
-      const result = await fetchFromGitHub(
-        `/repos/${fullName}/pulls`,
+      const prResult = await fetchFromGitHub(
+        `/repos/${repo.full_name}/pulls`,
         accessToken,
         { state: 'open', per_page: 1 }
       );
-      return result.lastPage || result.data.length;
+      openPrCount = prResult.lastPage || prResult.data.length;
     } catch {
-      return 0;
+      // Some repos may not have PR access
     }
+
+    return {
+      id: repo.id,
+      name: repo.name,
+      fullName: repo.full_name,
+      description: repo.description,
+      language: repo.language,
+      stars: repo.stargazers_count,
+      forks: repo.forks_count,
+      openIssues: repo.open_issues_count,
+      openPrCount,
+      defaultBranch: repo.default_branch,
+      url: repo.html_url,
+      visibility: repo.visibility || (repo.private ? 'private' : 'public'),
+      ownerName: repo.owner?.login,
+      ownerAvatarUrl: repo.owner?.avatar_url,
+      updatedAt: repo.updated_at,
+      createdAt: repo.created_at,
+    };
   }
 }
 
