@@ -8,6 +8,7 @@ import Repositories from './pages/Repositories';
 import PullRequests from './pages/PullRequests';
 import PullRequestDetail from './pages/PullRequestDetail';
 import ReviewResults from './pages/ReviewResults';
+import Search from './pages/Search';
 import ReviewHistory from './pages/ReviewHistory';
 import ReviewDetailById from './pages/ReviewDetailById';
 import Analytics from './pages/Analytics';
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/pull-requests" element={<PullRequests />} />
             <Route path="/pull-requests/:owner/:repo" element={<PullRequests />} />
             <Route path="/pull-requests/:owner/:repo/:prNumber" element={<PullRequestDetail />} />
+            <Route path="/search" element={<Search />} />
             <Route path="/review-results" element={<ReviewResults />} />
             <Route path="/reviews" element={<ReviewHistory />} />
             <Route path="/reviews/:id" element={<ReviewDetailById />} />
