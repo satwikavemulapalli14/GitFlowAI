@@ -160,6 +160,111 @@ const Review = {
 
     return { reviews: data, stats: { totalReviews, totalIssues, averageScore: avgScore } };
   },
+
+  async analytics(userId) {
+    const result = await db.query(
+      `SELECT r.score, r.total_issues, r.completed_at, r.raw_output,
+              rp.full_name AS repo_full_name
+       FROM ${this.table} r
+       LEFT JOIN pull_requests p ON r.pull_request_id = p.id
+       LEFT JOIN repositories rp ON p.repository_id = rp.id
+       WHERE r.reviewer_id = $1 AND r.status = 'completed'
+       ORDER BY r.completed_at ASC NULLS LAST`,
+      [userId]
+    );
+
+    const rows = result.rows;
+    if (rows.length === 0) {
+      return {
+        averageScore: 0,
+        scoreTrend: [],
+        issuesByCategory: { bugs: 0, security: 0, performance: 0, readability: 0, maintainability: 0, codeSmells: 0 },
+        repositoriesReviewed: [],
+        monthlyReviews: [],
+        commonCodeSmells: [],
+      };
+    }
+
+    const scores = rows.map((r) => r.score).filter(Boolean);
+    const averageScore = scores.length > 0
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      : 0;
+
+    const scoreByMonth = {};
+    const reviewsByMonth = {};
+    for (const r of rows) {
+      if (!r.completed_at) continue;
+      const month = new Date(r.completed_at).toISOString().slice(0, 7);
+      if (!scoreByMonth[month]) { scoreByMonth[month] = []; reviewsByMonth[month] = 0; }
+      if (r.score) scoreByMonth[month].push(r.score);
+      reviewsByMonth[month]++;
+    }
+    const scoreTrend = Object.entries(scoreByMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, vals]) => ({
+        month,
+        averageScore: vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0,
+        count: reviewsByMonth[month] || 0,
+      }));
+
+    const issuesByCategory = { bugs: 0, security: 0, performance: 0, readability: 0, maintainability: 0, codeSmells: 0 };
+    const smellMessages = [];
+
+    for (const r of rows) {
+      if (!r.raw_output) continue;
+      let parsed;
+      try {
+        parsed = typeof r.raw_output === 'string' ? JSON.parse(r.raw_output) : r.raw_output;
+      } catch {
+        continue;
+      }
+      for (const cat of Object.keys(issuesByCategory)) {
+        const items = parsed[cat];
+        if (Array.isArray(items)) {
+          issuesByCategory[cat] += items.length;
+          if (cat === 'codeSmells') {
+            for (const item of items) {
+              smellMessages.push(item.message || item.problem || '');
+            }
+          }
+        }
+      }
+    }
+
+    const smellCount = {};
+    for (const msg of smellMessages) {
+      const key = msg.trim().toLowerCase();
+      if (!key) continue;
+      smellCount[key] = (smellCount[key] || 0) + 1;
+    }
+    const commonCodeSmells = Object.entries(smellCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([message, count]) => ({ message, count }));
+
+    const repoCount = {};
+    for (const r of rows) {
+      const name = r.repo_full_name;
+      if (!name) continue;
+      repoCount[name] = (repoCount[name] || 0) + 1;
+    }
+    const repositoriesReviewed = Object.entries(repoCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const monthlyReviews = Object.entries(reviewsByMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, count]) => ({ month, count }));
+
+    return {
+      averageScore,
+      scoreTrend,
+      issuesByCategory,
+      repositoriesReviewed,
+      monthlyReviews,
+      commonCodeSmells,
+    };
+  },
 };
 
 module.exports = Review;
