@@ -160,6 +160,22 @@ const Review = {
     return result.rows[0].count;
   },
 
+  async countByReviewer(userId) {
+    const result = await db.query(
+      `SELECT COUNT(*)::int AS count FROM ${this.table} WHERE reviewer_id = $1 AND status = 'completed'`,
+      [userId]
+    );
+    return result.rows[0].count;
+  },
+
+  async averageScoreByReviewer(userId) {
+    const result = await db.query(
+      `SELECT COALESCE(AVG(score)::int, 0) AS average FROM ${this.table} WHERE reviewer_id = $1 AND score IS NOT NULL`,
+      [userId]
+    );
+    return result.rows[0].average;
+  },
+
   async averageScore() {
     const result = await db.query(
       `SELECT COALESCE(AVG(score)::int, 0) AS average FROM ${this.table} WHERE score IS NOT NULL`

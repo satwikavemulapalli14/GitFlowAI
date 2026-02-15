@@ -8,6 +8,7 @@ const Repository = require('./Repository');
 const PullRequest = require('./PullRequest');
 const Review = require('./Review');
 const Comment = require('./Comment');
+const UserSettings = require('./UserSettings');
 
 module.exports = {
   User,
@@ -15,4 +16,5 @@ module.exports = {
   PullRequest,
   Review,
   Comment,
+  UserSettings,
 };
