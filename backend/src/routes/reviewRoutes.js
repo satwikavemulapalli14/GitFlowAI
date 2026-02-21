@@ -5,6 +5,6 @@ const reviewController = require('../controllers/reviewController');
 
 router.post('/review', authenticate, reviewController.create);
 router.get('/review', authenticate, reviewController.getByPullRequest);
-router.get('/reviews', authenticate, reviewController.dashboard);
+router.get('/review/dashboard', authenticate, reviewController.dashboard);
 
 module.exports = { path: '/api', router };

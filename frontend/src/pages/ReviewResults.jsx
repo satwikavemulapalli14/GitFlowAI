@@ -61,7 +61,7 @@ export default function ReviewResults() {
     setLoading(true);
     setError(null);
     api
-      .get('/reviews')
+      .get('/review/dashboard')
       .then((res) => {
         const result = res.data.data;
         setData(result);
