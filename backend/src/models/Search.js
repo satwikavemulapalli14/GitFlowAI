@@ -3,7 +3,7 @@ const db = require('../database/connection');
 const Search = {
   async global(userId, { query = '', type = 'all', repositoryId = '', dateFrom = '', dateTo = '', scoreMin = '', scoreMax = '', status = '', page = 1, perPage = 20 } = {}) {
     const params = [];
-    let idx = 1;
+    let idx = 2;
 
     const repoClauses = [];
     const prClauses = [];
