@@ -14,6 +14,7 @@ import ReviewDetailById from './pages/ReviewDetailById';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
+import Documentation from './pages/Documentation';
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/docs" element={<Documentation />} />
           </Route>
         </Route>
 

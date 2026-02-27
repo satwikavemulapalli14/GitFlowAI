@@ -6,14 +6,8 @@ export default function Footer() {
           &copy; {new Date().getFullYear()} GitFlowAI. All rights reserved.
         </p>
         <div className="flex gap-4 text-sm text-gray-500">
-          <a href="#" className="hover:text-gray-700">
+          <a href="/docs" className="hover:text-gray-700">
             Documentation
-          </a>
-          <a href="#" className="hover:text-gray-700">
-            GitHub
-          </a>
-          <a href="#" className="hover:text-gray-700">
-            Support
           </a>
         </div>
       </div>
