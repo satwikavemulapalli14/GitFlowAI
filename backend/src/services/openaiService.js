@@ -80,9 +80,9 @@ async function callOpenAI(prompt, apiKey, signal) {
   return parseResponse(content);
 }
 
-async function generateReview(repo, pr, changedFiles) {
-  const apiKey = config.openai.apiKey;
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not configured');
+async function generateReview(repo, pr, changedFiles, userApiKey) {
+    const apiKey = userApiKey || config.openai.apiKey;
+  if (!apiKey) throw new Error('OpenAI API key is not configured. Set it in Settings or in the OPENAI_API_KEY environment variable.');
 
   const prompt = buildPrompt(repo, pr, changedFiles);
   let lastError;

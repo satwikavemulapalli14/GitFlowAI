@@ -4,6 +4,7 @@ const Review = require('../models/Review');
 const Comment = require('../models/Comment');
 const Repository = require('../models/Repository');
 const PullRequest = require('../models/PullRequest');
+const UserSettings = require('../models/UserSettings');
 
 exports.create = async (req, res, next) => {
   try {
@@ -60,8 +61,12 @@ exports.create = async (req, res, next) => {
     const repoInfo = { fullName: `${owner}/${repo}` };
     const changedFiles = prDetail.files || [];
 
+    // Fetch the user's per-user API key (if set in Settings), fall back to env var
+    const userSettings = await UserSettings.findByUserId(userId);
+    const userApiKey = userSettings?.openai_api_key || undefined;
+
     // Call AI
-    const aiResult = await openaiService.generateReview(repoInfo, prDetail, changedFiles);
+    const aiResult = await openaiService.generateReview(repoInfo, prDetail, changedFiles, userApiKey);
 
     // Create the review record in the database
     const review = await Review.create({
