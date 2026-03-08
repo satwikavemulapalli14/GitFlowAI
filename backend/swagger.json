@@ -1,0 +1,1977 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "GitFlowAI API",
+    "description": "AI-powered GitHub Pull Request Reviewer. Automates code review with intelligent analysis across security, performance, readability, maintainability, and code smells.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "GitFlowAI"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5001",
+      "description": "Local development"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token obtained from GitHub OAuth login. Include as: Authorization: Bearer <token>"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "perPage": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          },
+          "hasNext": {
+            "type": "boolean"
+          },
+          "hasPrev": {
+            "type": "boolean"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "github_id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "avatar_url": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "profile_url": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Repository": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "github_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "default_branch": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "stars": {
+            "type": "integer"
+          },
+          "forks": {
+            "type": "integer"
+          },
+          "open_issues": {
+            "type": "integer"
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "owner_name": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RepositoryListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Repository"
+            }
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "ReviewIssue": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "nullable": true
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "problem": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "suggestedFix": {
+            "type": "string"
+          },
+          "improvedCode": {
+            "type": "string"
+          },
+          "originalCode": {
+            "type": "string"
+          }
+        }
+      },
+      "ReviewCategories": {
+        "type": "object",
+        "properties": {
+          "bugs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewIssue"
+            }
+          },
+          "security": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewIssue"
+            }
+          },
+          "performance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewIssue"
+            }
+          },
+          "readability": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewIssue"
+            }
+          },
+          "maintainability": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewIssue"
+            }
+          },
+          "codeSmells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewIssue"
+            }
+          }
+        }
+      },
+      "ReviewSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "totalIssues": {
+            "type": "integer"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateReviewResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "review": {
+                "$ref": "#/components/schemas/ReviewSummary"
+              },
+              "categories": {
+                "$ref": "#/components/schemas/ReviewCategories"
+              }
+            }
+          }
+        }
+      },
+      "ReviewDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "totalIssues": {
+            "type": "integer"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "repoFullName": {
+            "type": "string"
+          },
+          "repoName": {
+            "type": "string"
+          },
+          "repoOwner": {
+            "type": "string"
+          },
+          "repoUrl": {
+            "type": "string"
+          },
+          "prNumber": {
+            "type": "integer"
+          },
+          "prTitle": {
+            "type": "string"
+          },
+          "prState": {
+            "type": "string"
+          },
+          "headBranch": {
+            "type": "string"
+          },
+          "baseBranch": {
+            "type": "string"
+          },
+          "categories": {
+            "$ref": "#/components/schemas/ReviewCategories"
+          },
+          "categoryCounts": {
+            "type": "object",
+            "properties": {
+              "bugs": {
+                "type": "integer"
+              },
+              "security": {
+                "type": "integer"
+              },
+              "performance": {
+                "type": "integer"
+              },
+              "readability": {
+                "type": "integer"
+              },
+              "maintainability": {
+                "type": "integer"
+              },
+              "codeSmells": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "ReviewListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "total_issues": {
+            "type": "integer"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "repo_full_name": {
+            "type": "string"
+          },
+          "repo_name": {
+            "type": "string"
+          },
+          "pr_number": {
+            "type": "integer"
+          },
+          "pr_title": {
+            "type": "string"
+          }
+        }
+      },
+      "ReviewListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewListItem"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "repository",
+              "pull_request",
+              "review"
+            ]
+          },
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "repo_full_name": {
+            "type": "string"
+          },
+          "pr_number": {
+            "type": "integer",
+            "nullable": true
+          },
+          "pr_title": {
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "integer",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "language": {
+            "type": "string",
+            "nullable": true
+          },
+          "stars": {
+            "type": "integer",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "repo_owner": {
+            "type": "string"
+          }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SearchResult"
+                }
+              },
+              "summary": {
+                "type": "object",
+                "properties": {
+                  "all": {
+                    "type": "integer"
+                  },
+                  "repositories": {
+                    "type": "integer"
+                  },
+                  "pullRequests": {
+                    "type": "integer"
+                  },
+                  "reviews": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "ProfileResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "$ref": "#/components/schemas/User"
+              },
+              "stats": {
+                "type": "object",
+                "properties": {
+                  "reviewsGiven": {
+                    "type": "integer"
+                  },
+                  "averageScore": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "UserSettings": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "dark_mode": {
+            "type": "boolean"
+          },
+          "email_notifications": {
+            "type": "boolean"
+          },
+          "slack_integration": {
+            "type": "boolean"
+          },
+          "review_reminders": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "never"
+            ]
+          },
+          "openai_api_key": {
+            "type": "string",
+            "description": "Masked API key (only last 4 chars shown)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UserSettings"
+          }
+        }
+      },
+      "AnalyticsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "averageScore": {
+                "type": "integer"
+              },
+              "scoreTrend": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "month": {
+                      "type": "string"
+                    },
+                    "averageScore": {
+                      "type": "integer"
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "issuesByCategory": {
+                "type": "object",
+                "properties": {
+                  "bugs": {
+                    "type": "integer"
+                  },
+                  "security": {
+                    "type": "integer"
+                  },
+                  "performance": {
+                    "type": "integer"
+                  },
+                  "readability": {
+                    "type": "integer"
+                  },
+                  "maintainability": {
+                    "type": "integer"
+                  },
+                  "codeSmells": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "repositoriesReviewed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "monthlyReviews": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "month": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "commonCodeSmells": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "OK"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "DbOverviewResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "tables": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "DbMigrateResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "DashboardResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "reviews": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ReviewSummary"
+                }
+              },
+              "stats": {
+                "type": "object",
+                "properties": {
+                  "totalReviews": {
+                    "type": "integer"
+                  },
+                  "totalIssues": {
+                    "type": "integer"
+                  },
+                  "averageScore": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Server health",
+        "description": "Returns the current server status and API version.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Server is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/github": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "GitHub OAuth login",
+        "description": "Redirects the user to GitHub for OAuth authorization.",
+        "security": [],
+        "responses": {
+          "302": {
+            "description": "Redirect to GitHub OAuth page"
+          }
+        }
+      }
+    },
+    "/api/auth/github/callback": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "GitHub OAuth callback",
+        "description": "Handles the OAuth callback from GitHub. Exchanges the code for an access token and JWT, then redirects to the frontend with the token.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "Frontend URL to redirect to"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to frontend with JWT token"
+          },
+          "401": {
+            "description": "Authentication failed"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Get current user",
+        "description": "Returns the authenticated user`s profile information.",
+        "responses": {
+          "200": {
+            "description": "Current user data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Logout",
+        "description": "Logs out the current user (client-side token removal).",
+        "responses": {
+          "200": {
+            "description": "Logged out successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repositories": {
+      "get": {
+        "tags": [
+          "Repositories"
+        ],
+        "summary": "List repositories",
+        "description": "Returns paginated repositories for the authenticated user. Optionally syncs from GitHub first.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 12
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by name"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by language"
+          },
+          {
+            "name": "sync",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Sync repositories from GitHub before fetching"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated repository list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/repositories/{id}": {
+      "get": {
+        "tags": [
+          "Repositories"
+        ],
+        "summary": "Get repository by ID",
+        "description": "Returns a single repository by its database ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repository data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Repository"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Repository not found"
+          }
+        }
+      }
+    },
+    "/api/repositories/{owner}/{repo}/pullrequests": {
+      "get": {
+        "tags": [
+          "Pull Requests"
+        ],
+        "summary": "List pull requests",
+        "description": "Returns pull requests for a given repository from the GitHub API.",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "open",
+                "closed"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created",
+                "updated"
+              ],
+              "default": "updated"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of pull requests from GitHub API"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/repositories/{owner}/{repo}/pullrequests/{prNumber}": {
+      "get": {
+        "tags": [
+          "Pull Requests"
+        ],
+        "summary": "Get pull request detail",
+        "description": "Returns detailed information about a specific pull request including changed files and their diffs.",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "prNumber",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pull request detail with files and diffs"
+          },
+          "404": {
+            "description": "Pull request not found"
+          }
+        }
+      }
+    },
+    "/api/review": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Get reviews by pull request",
+        "description": "Returns all reviews for a given pull request (by pull_request_id query param).",
+        "parameters": [
+          {
+            "name": "pullRequestId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of reviews",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ReviewListItem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Run AI review",
+        "description": "Triggers an AI-powered code review on a pull request. Fetches the PR diff from GitHub, sends it to OpenAI for analysis, and stores the result.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "owner",
+                  "repo",
+                  "prNumber"
+                ],
+                "properties": {
+                  "owner": {
+                    "type": "string",
+                    "description": "Repository owner"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "Repository name"
+                  },
+                  "prNumber": {
+                    "type": "integer",
+                    "description": "Pull request number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AI review completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateReviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "AI returned an unexpected response"
+          }
+        }
+      }
+    },
+    "/api/review/dashboard": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Review dashboard",
+        "description": "Returns aggregated review statistics and all completed reviews for the authenticated user.",
+        "responses": {
+          "200": {
+            "description": "Dashboard data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reviews": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "List reviews",
+        "description": "Returns paginated review history for the authenticated user with search and sort options.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search by repo name, PR number, or summary"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "completed_at",
+                "score",
+                "created_at"
+              ],
+              "default": "completed_at"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated review list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/reviews/{id}": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Get review by ID",
+        "description": "Returns full review details including parsed categories and issues.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review detail with all categories and issues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewDetail"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Review not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Delete review",
+        "description": "Deletes a review if it belongs to the authenticated user.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Review not found"
+          }
+        }
+      }
+    },
+    "/api/reviews/{id}/export/pdf": {
+      "get": {
+        "tags": [
+          "Export"
+        ],
+        "summary": "Export review as PDF",
+        "description": "Downloads a PDF file containing the full review report including summary, all category issues, and suggested improvements.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF file download",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Review not found"
+          }
+        }
+      }
+    },
+    "/api/reviews/{id}/export/markdown": {
+      "get": {
+        "tags": [
+          "Export"
+        ],
+        "summary": "Export review as Markdown",
+        "description": "Downloads a Markdown file containing the full review report including summary, all category issues, and suggested improvements.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Markdown file download",
+            "content": {
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Review not found"
+          }
+        }
+      }
+    },
+    "/api/profile": {
+      "get": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Get profile",
+        "description": "Returns the authenticated user's profile information along with review statistics (total reviews given and average score).",
+        "responses": {
+          "200": {
+            "description": "Profile with stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/profile/settings": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Get user settings",
+        "description": "Returns the authenticated user's settings including notification preferences and masked OpenAI API key.",
+        "responses": {
+          "200": {
+            "description": "User settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Update user settings",
+        "description": "Updates the authenticated user's settings. Only provided fields are updated.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dark_mode": {
+                    "type": "boolean"
+                  },
+                  "email_notifications": {
+                    "type": "boolean"
+                  },
+                  "slack_integration": {
+                    "type": "boolean"
+                  },
+                  "review_reminders": {
+                    "type": "string",
+                    "enum": [
+                      "daily",
+                      "weekly",
+                      "never"
+                    ]
+                  },
+                  "openai_api_key": {
+                    "type": "string",
+                    "description": "OpenAI API key for AI reviews"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "tags": [
+          "Search"
+        ],
+        "summary": "Global search",
+        "description": "Searches across repositories, pull requests, and reviews with optional filters.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search query"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "repositories",
+                "pull_requests",
+                "reviews"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "repository_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Filter by repository"
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "scoreMin",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "scoreMax",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by status (open/closed/merged or review status)"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated search results with type summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search/repositories": {
+      "get": {
+        "tags": [
+          "Search"
+        ],
+        "summary": "Search repositories (simple)",
+        "description": "Returns a simplified list of all repositories for use in search dropdowns.",
+        "responses": {
+          "200": {
+            "description": "Repository list for search filters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/stats": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Get analytics stats",
+        "description": "Returns comprehensive analytics including average score, score trends over time, issue distribution by category, most reviewed repositories, monthly review counts, and common code smells.",
+        "responses": {
+          "200": {
+            "description": "Analytics data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/db": {
+      "get": {
+        "tags": [
+          "Database"
+        ],
+        "summary": "Database overview",
+        "description": "Returns database version and table list.",
+        "responses": {
+          "200": {
+            "description": "Database overview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DbOverviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/db/health": {
+      "get": {
+        "tags": [
+          "Database"
+        ],
+        "summary": "Database health check",
+        "description": "Returns the database connection status.",
+        "responses": {
+          "200": {
+            "description": "Database health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "connected": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/db/stats": {
+      "get": {
+        "tags": [
+          "Database"
+        ],
+        "summary": "Database statistics",
+        "description": "Returns record counts for each table.",
+        "responses": {
+          "200": {
+            "description": "Table record counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/db/migrate": {
+      "post": {
+        "tags": [
+          "Database"
+        ],
+        "summary": "Run database migrations",
+        "description": "Executes pending SQL migration files.",
+        "responses": {
+          "200": {
+            "description": "Migration result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DbMigrateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "responses": {
+    "Unauthorized": {
+      "description": "Missing or invalid authentication token",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "success": {
+                "type": "boolean",
+                "example": false
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Server health endpoints"
+    },
+    {
+      "name": "Authentication",
+      "description": "GitHub OAuth and user authentication"
+    },
+    {
+      "name": "Repositories",
+      "description": "Repository management"
+    },
+    {
+      "name": "Pull Requests",
+      "description": "Pull request listing and details"
+    },
+    {
+      "name": "Reviews",
+      "description": "AI-powered code review operations"
+    },
+    {
+      "name": "Export",
+      "description": "Export reviews as PDF or Markdown"
+    },
+    {
+      "name": "Profile",
+      "description": "User profile and statistics"
+    },
+    {
+      "name": "Settings",
+      "description": "User settings and preferences"
+    },
+    {
+      "name": "Search",
+      "description": "Global search across repositories, PRs, and reviews"
+    },
+    {
+      "name": "Analytics",
+      "description": "Review analytics and trends"
+    },
+    {
+      "name": "Database",
+      "description": "Database administration endpoints"
+    }
+  ]
+}
