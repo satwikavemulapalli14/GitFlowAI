@@ -1,0 +1,26 @@
+services:
+  frontend:
+    build:
+      target: development
+    container_name: gitflowai-frontend-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+
+  backend:
+    build:
+      target: development
+    container_name: gitflowai-backend-dev
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/.env:/app/.env
+
+  db:
+    ports:
+      - "5432:5432"
