@@ -16,6 +16,7 @@ GitFlowAI automatically reviews pull requests using OpenAI, providing actionable
 | **Auth**     | JWT + GitHub OAuth                                            |
 | **AI**       | OpenAI API (GPT-4o)                                           |
 | **DevOps**   | Docker, Docker Compose, npm workspaces                        |
+| **Deploy**   | Vercel (frontend), Render (backend), Neon (PostgreSQL)        |
 
 ---
 
@@ -29,8 +30,13 @@ GitFlowAI automatically reviews pull requests using OpenAI, providing actionable
 | `.gitignore` | Ignores `node_modules/`, `.env`, build output, IDE files |
 | `README.md` | Project documentation |
 | `architecture.md` | System architecture diagram, layer breakdown, request flow |
-| `Dockerfile` | Multi-stage production image — builds frontend, serves via Express |
-| `docker-compose.yml` | Orchestrates backend + PostgreSQL services |
+| `frontend/Dockerfile` | Multi-target Dockerfile — development (vite) and production (nginx) |
+| `frontend/nginx.conf` | Nginx config — serves SPA, proxies `/api` to backend |
+| `frontend/vercel.json` | Vercel deployment config — SPA rewrites, build settings |
+| `frontend/.env.example` | Frontend environment variable template |
+| `backend/Dockerfile` | Multi-target Dockerfile — development (nodemon) and production (node) |
+| `docker-compose.yml` | Production orchestration — nginx + backend + PostgreSQL |
+| `docker-compose.override.yml` | Development overrides — volume mounts, dev ports |
 
 ### Backend — `backend/`
 
@@ -317,28 +323,135 @@ npm run start -w backend      # Start backend only
 
 ## Docker
 
-### Build and run
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) 4.x+
+
+### Development (hot reload)
 
 ```bash
-docker compose up --build
+docker compose up -d
+```
+
+| Service   | URL                          |
+|-----------|------------------------------|
+| Frontend  | `http://localhost:5173`      |
+| Backend   | `http://localhost:5001`      |
+| Swagger   | `http://localhost:5001/api/docs` |
+
+Changes to `frontend/src/` and `backend/src/` are reflected immediately via volume mounts.
+
+### Production
+
+```bash
+GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... OPENAI_API_KEY=... \
+  docker compose -f docker-compose.yml up -d
 ```
 
 | Service   | URL                     |
 |-----------|-------------------------|
+| Frontend  | `http://localhost:80`   |
 | Backend   | `http://localhost:5001` |
-| Database  | `localhost:5432`        |
 
-### Production image
 
-The `Dockerfile` uses a multi-stage build:
-
-1. **frontend-build** — installs frontend deps, runs `vite build` → `frontend/dist/`
-2. **backend** — installs backend production deps only
-3. **final** — copies backend and built frontend, serves via Express on port 5001
+### Stop
 
 ```bash
-docker build -t gitflowai .
-docker run -p 5001:5001 gitflowai
+docker compose down        # stop services
+docker compose down -v     # stop + delete database volume
+```
+
+---
+
+## Deployment
+
+The application is deployed across three providers:
+
+| Layer      | Provider | Configuration |
+|------------|----------|---------------|
+| Frontend   | **Vercel** | `frontend/vercel.json` |
+| Backend    | **Render** | Manual via dashboard |
+| Database   | **Neon**   | Serverless PostgreSQL |
+
+### 1. Database — Neon
+
+1. Sign up at [neon.tech](https://neon.tech) and create a project
+2. Copy the connection string from the dashboard (it looks like `postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/gitflowai?sslmode=require`)
+3. Run migrations against it:
+   ```bash
+   DATABASE_URL="<neon-connection-string>" node backend/src/database/migrate.js
+   ```
+
+### 2. Backend — Render
+
+1. Push the repo to GitHub
+2. In [Render Dashboard](https://dashboard.render.com), click **New + → Web Service**
+3. Connect your GitHub repo
+4. Configure:
+
+   | Setting | Value |
+   |---------|-------|
+   | **Name** | `gitflowai-api` |
+   | **Root Directory** | `backend` |
+   | **Runtime** | `Node` |
+   | **Build Command** | `npm install` |
+   | **Start Command** | `node src/server.js` |
+   | **Plan** | Free |
+
+5. Add environment variables:
+
+   | Variable | Value |
+   |----------|-------|
+   | `NODE_ENV` | `production` |
+   | `DATABASE_URL` | Your Neon connection string |
+   | `JWT_SECRET` | Generate a random secret (`openssl rand -hex 32`) |
+   | `JWT_EXPIRES_IN` | `7d` |
+   | `GITHUB_CLIENT_ID` | Your GitHub OAuth App client ID |
+   | `GITHUB_CLIENT_SECRET` | Your GitHub OAuth App client secret |
+   | `GITHUB_CALLBACK_URL` | `https://gitflowai-api.onrender.com/api/auth/github/callback` |
+   | `OPENAI_API_KEY` | Your OpenAI API key |
+   | `CORS_ORIGIN` | `https://gitflowai.vercel.app` (your Vercel frontend URL) |
+
+6. Click **Create Web Service**
+
+> **Note:** After deploying, update your GitHub OAuth App's callback URL to point to Render:
+> `https://gitflowai-api.onrender.com/api/auth/github/callback`
+
+### 3. Frontend — Vercel
+
+1. In [Vercel Dashboard](https://vercel.com), click **Add New → Project**
+2. Import your GitHub repo
+3. Configure:
+
+   | Setting | Value |
+   |---------|-------|
+   | **Root Directory** | `frontend` |
+   | **Framework Preset** | `Vite` (auto-detected) |
+   | **Build Command** | `npm run build` |
+   | **Output Directory** | `dist` |
+
+4. Add environment variable:
+
+   | Variable | Value |
+   |----------|-------|
+   | `VITE_API_URL` | `https://gitflowai-api.onrender.com/api` |
+
+5. Click **Deploy**
+
+> Vercel automatically reads `frontend/vercel.json` for SPA rewrites.
+
+### Deployment Verification
+
+```bash
+# 1. Backend health
+curl https://gitflowai-api.onrender.com/api/health
+
+# 2. Frontend loads
+curl -I https://gitflowai.vercel.app
+
+# 3. End-to-end: frontend → backend → database
+#    Open https://gitflowai.vercel.app in a browser
+#    Sign in with GitHub → should redirect through Render backend
 ```
 
 ---

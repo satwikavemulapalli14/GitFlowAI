@@ -7,12 +7,18 @@
 const { Pool } = require('pg');
 const config = require('../config');
 
-const pool = new Pool({
+const poolOptions = {
   connectionString: config.database.url,
   max: config.database.pool.max,
   idleTimeoutMillis: config.database.pool.idleTimeoutMillis,
   connectionTimeoutMillis: config.database.pool.connectionTimeoutMillis,
-});
+};
+
+if (config.env === 'production' || config.database.url.includes('sslmode=require')) {
+  poolOptions.ssl = { rejectUnauthorized: false };
+}
+
+const pool = new Pool(poolOptions);
 
 // Log pool events in development
 pool.on('error', (err) => {
