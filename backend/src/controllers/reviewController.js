@@ -1,11 +1,9 @@
 const githubService = require('../services/githubService');
 const openaiService = require('../services/openaiService');
-const geminiService = require('../services/geminiService');
 const Review = require('../models/Review');
 const Comment = require('../models/Comment');
-
-const config = require('../config');
-const aiService = config.gemini.apiKey ? geminiService : openaiService;
+const Repository = require('../models/Repository');
+const PullRequest = require('../models/PullRequest');
 
 exports.create = async (req, res, next) => {
   try {
@@ -23,12 +21,29 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    // Try to find an existing review for this PR by this user
     const userId = req.user.sub;
-    const existingReviews = await Review.findByReviewer(userId);
-    const existing = existingReviews.find(
-      (r) => r.pull_request_id && r.status === 'completed'
-    );
+
+    // Find the repository record
+    const repository = await Repository.findByFullName(`${owner}/${repo}`);
+    if (!repository) {
+      return res.status(404).json({ success: false, message: 'Repository not found in database' });
+    }
+
+    // Find or create the pull_request record
+    let prRecord = await PullRequest.findByRepoAndNumber(repository.id, prNumber);
+    if (!prRecord) {
+      prRecord = await PullRequest.create({
+        repository_id: repository.id,
+        pr_number: prNumber,
+        title: `#${prNumber}`,
+        author_id: userId,
+        state: 'open',
+      });
+    }
+
+    // Check for existing review for this specific PR
+    const existingReviews = await Review.findByPullRequest(prRecord.id);
+    const existing = existingReviews.find((r) => r.status === 'completed');
 
     // Fetch PR details and changed files from GitHub
     const prDetail = await githubService.getPullRequestDetail(
@@ -46,11 +61,11 @@ exports.create = async (req, res, next) => {
     const changedFiles = prDetail.files || [];
 
     // Call AI
-    const aiResult = await aiService.generateReview(repoInfo, prDetail, changedFiles);
+    const aiResult = await openaiService.generateReview(repoInfo, prDetail, changedFiles);
 
     // Create the review record in the database
     const review = await Review.create({
-      pull_request_id: null, // Not storing in DB, just returning
+      pull_request_id: prRecord.id,
       reviewer_id: userId,
       status: 'completed',
       score: aiResult.overallScore,
