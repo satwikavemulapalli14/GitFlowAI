@@ -1,7 +1,11 @@
 const githubService = require('../services/githubService');
 const openaiService = require('../services/openaiService');
+const geminiService = require('../services/geminiService');
 const Review = require('../models/Review');
 const Comment = require('../models/Comment');
+
+const config = require('../config');
+const aiService = config.gemini.apiKey ? geminiService : openaiService;
 
 exports.create = async (req, res, next) => {
   try {
@@ -42,7 +46,7 @@ exports.create = async (req, res, next) => {
     const changedFiles = prDetail.files || [];
 
     // Call AI
-    const aiResult = await openaiService.generateReview(repoInfo, prDetail, changedFiles);
+    const aiResult = await aiService.generateReview(repoInfo, prDetail, changedFiles);
 
     // Create the review record in the database
     const review = await Review.create({
