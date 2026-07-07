@@ -33,6 +33,12 @@ function authenticate(req, res, next) {
           message: 'User not found',
         });
       }
+      if (!user.access_token) {
+        return res.status(401).json({
+          success: false,
+          message: 'GitHub access token missing — please re-authenticate',
+        });
+      }
       req.user.accessToken = user.access_token;
       next();
     })
