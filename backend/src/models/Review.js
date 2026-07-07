@@ -10,7 +10,7 @@ const Review = {
 
   columns: `
     id, pull_request_id, reviewer_id, status, score, summary,
-    total_issues, started_at, completed_at, created_at, updated_at
+    total_issues, raw_output, started_at, completed_at, created_at, updated_at
   `,
 
   async findAll() {
@@ -53,13 +53,13 @@ const Review = {
   },
 
   async create(data) {
-    const { pull_request_id, reviewer_id, status, score, summary, total_issues } = data;
+    const { pull_request_id, reviewer_id, status, score, summary, total_issues, raw_output } = data;
     const result = await db.query(
       `INSERT INTO ${this.table}
-        (pull_request_id, reviewer_id, status, score, summary, total_issues)
-       VALUES ($1, $2, $3, $4, $5, $6)
+        (pull_request_id, reviewer_id, status, score, summary, total_issues, raw_output)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING ${this.columns}`,
-      [pull_request_id, reviewer_id || null, status || 'pending', score || null, summary || null, total_issues || 0]
+      [pull_request_id, reviewer_id || null, status || 'pending', score || null, summary || null, total_issues || 0, raw_output || null]
     );
     return result.rows[0];
   },
@@ -70,7 +70,7 @@ const Review = {
     let idx = 1;
 
     for (const [key, value] of Object.entries(data)) {
-      if (['status', 'score', 'summary', 'total_issues', 'started_at', 'completed_at'].includes(key)) {
+      if (['status', 'score', 'summary', 'total_issues', 'raw_output', 'started_at', 'completed_at'].includes(key)) {
         fields.push(`${key} = $${idx++}`);
         values.push(value);
       }

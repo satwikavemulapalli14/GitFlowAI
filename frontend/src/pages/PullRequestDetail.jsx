@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import Loader from '../components/ui/Loader';
 import DiffView from '../components/pr/DiffView';
+import ReviewResults from '../components/pr/ReviewResults';
 
 const TABS = ['Overview', 'Files Changed', 'Commits'];
 
@@ -43,6 +44,9 @@ export default function PullRequestDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('Overview');
+  const [reviewData, setReviewData] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState(null);
 
   useEffect(() => {
     if (!owner || !repo || !prNumber) return;
@@ -58,6 +62,20 @@ export default function PullRequestDetail() {
       })
       .finally(() => setLoading(false));
   }, [owner, repo, prNumber]);
+
+  const handleReview = async () => {
+    setReviewLoading(true);
+    setReviewError(null);
+    setReviewData(null);
+    try {
+      const res = await api.post('/review', { owner, repo, prNumber: parseInt(prNumber, 10) });
+      setReviewData(res.data.data);
+    } catch (err) {
+      setReviewError(err.response?.data?.message || 'Failed to run AI review');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
 
   if (loading) return <Loader />;
 
@@ -134,7 +152,29 @@ export default function PullRequestDetail() {
             )}
           </div>
 
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex items-center gap-2">
+            <button
+              onClick={handleReview}
+              disabled={reviewLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {reviewLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Reviewing...
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Review with AI
+                </>
+              )}
+            </button>
             <a
               href={pr.url}
               target="_blank"
@@ -174,6 +214,15 @@ export default function PullRequestDetail() {
           )}
         </div>
       </div>
+
+      {/* AI Review Results */}
+      {reviewError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {reviewError}
+        </div>
+      )}
+
+      {reviewData && <ReviewResults data={reviewData} />}
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
