@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const { User } = require('../models');
 
 function authenticate(req, res, next) {
   const header = req.headers.authorization;
@@ -20,8 +21,28 @@ function authenticate(req, res, next) {
     });
   }
 
+  // Attach JWT payload fields
   req.user = decoded;
-  next();
+
+  // Fetch the full user from DB to get the GitHub access token
+  User.findById(decoded.sub)
+    .then((user) => {
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+      req.user.accessToken = user.access_token;
+      next();
+    })
+    .catch((err) => {
+      console.error('[Auth] DB lookup failed:', err.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Authentication error',
+      });
+    });
 }
 
 function optionalAuth(req, res, next) {

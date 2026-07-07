@@ -20,7 +20,7 @@ exports.create = async (req, res, next) => {
     }
 
     // Try to find an existing review for this PR by this user
-    const userId = req.user.id;
+    const userId = req.user.sub;
     const existingReviews = await Review.findByReviewer(userId);
     const existing = existingReviews.find(
       (r) => r.pull_request_id && r.status === 'completed'
@@ -106,7 +106,7 @@ exports.getByPullRequest = async (req, res, next) => {
 
 exports.dashboard = async (req, res, next) => {
   try {
-    const result = await Review.dashboard(req.user.id);
+    const result = await Review.dashboard(req.user.sub);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
