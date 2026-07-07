@@ -103,3 +103,12 @@ exports.getByPullRequest = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.dashboard = async (req, res, next) => {
+  try {
+    const result = await Review.dashboard(req.user.id);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
