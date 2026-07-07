@@ -55,7 +55,7 @@ export default function RepositoryCard({ repo }) {
 
   return (
     <div
-      onClick={() => navigate(`/pull-requests/${repo.ownerName || repo.owner?.login}/${repo.name}`)}
+      onClick={() => navigate(`/pull-requests/${repo.ownerName || repo.owner_name || repo.owner?.login}/${repo.name}`)}
       className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-primary-200 cursor-pointer"
     >
       <div className="flex items-start gap-3">
