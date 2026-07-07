@@ -148,6 +148,153 @@ class GitHubService {
     return { repos: enriched, totalCount };
   }
 
+  async getPullRequests(accessToken, owner, repo, { state = 'all', page = 1, perPage = 10, sort = 'updated', direction = 'desc' } = {}) {
+    const result = await fetchFromGitHub(`/repos/${owner}/${repo}/pulls`, accessToken, {
+      state,
+      page,
+      per_page: perPage,
+      sort,
+      direction,
+    });
+
+    const pulls = result.data;
+
+    // Fetch detailed stats (additions, deletions, changed_files) for each PR
+    const detailed = await Promise.all(
+      pulls.map(async (pr) => {
+        let detail = {};
+        try {
+          detail = await fetchFromGitHub(`/repos/${owner}/${repo}/pulls/${pr.number}`, accessToken);
+        } catch {
+          // Stats may not be available for some PRs
+        }
+
+        return {
+          id: pr.id,
+          number: pr.number,
+          title: pr.title,
+          description: pr.body,
+          state: pr.state,
+          author: pr.user?.login,
+          authorAvatar: pr.user?.avatar_url,
+          headBranch: pr.head?.ref,
+          baseBranch: pr.base?.ref,
+          createdAt: pr.created_at,
+          updatedAt: pr.updated_at,
+          closedAt: pr.closed_at,
+          mergedAt: pr.merged_at,
+          isMerged: !!pr.merged_at,
+          labels: pr.labels?.map((l) => ({ name: l.name, color: l.color })),
+          changedFiles: detail.data?.changed_files || 0,
+          additions: detail.data?.additions || 0,
+          deletions: detail.data?.deletions || 0,
+          comments: pr.comments,
+          reviewComments: pr.review_comments,
+          url: pr.html_url,
+        };
+      })
+    );
+
+    const totalCount = result.lastPage ? result.lastPage * perPage : pulls.length;
+
+    return { pulls: detailed, totalCount };
+  }
+
+  async getPullRequestDetail(accessToken, owner, repo, prNumber) {
+    const result = await fetchFromGitHub(`/repos/${owner}/${repo}/pulls/${prNumber}`, accessToken);
+    const pr = result.data;
+
+    let commits = [];
+    try {
+      const commitResult = await fetchFromGitHub(`/repos/${owner}/${repo}/pulls/${prNumber}/commits`, accessToken);
+      commits = commitResult.data.map((c) => ({
+        sha: c.sha,
+        message: c.commit.message,
+        authorName: c.commit.author?.name,
+        authorUsername: c.author?.login,
+        authorAvatar: c.author?.avatar_url,
+        date: c.commit.author?.date,
+        url: c.html_url,
+      }));
+    } catch {
+      // commits may not be available
+    }
+
+    let files = [];
+    try {
+      const filesResult = await fetchFromGitHub(`/repos/${owner}/${repo}/pulls/${prNumber}/files`, accessToken);
+      files = filesResult.data.map((f) => ({
+        filename: f.filename,
+        previousFilename: f.previous_filename || null,
+        status: f.status,
+        additions: f.additions,
+        deletions: f.deletions,
+        changes: f.changes,
+        patch: f.patch || null,
+        blobUrl: f.blob_url,
+        rawUrl: f.raw_url,
+        contentsUrl: f.contents_url,
+      }));
+    } catch {
+      // files may not be available
+    }
+
+    let reviews = [];
+    try {
+      const reviewsResult = await fetchFromGitHub(`/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, accessToken);
+      reviews = reviewsResult.data.map((r) => ({
+        id: r.id,
+        author: r.user?.login,
+        authorAvatar: r.user?.avatar_url,
+        state: r.state,
+        body: r.body,
+        submittedAt: r.submitted_at,
+        commitId: r.commit_id,
+      }));
+    } catch {
+      // reviews may not be available
+    }
+
+    const reviewStates = reviews.map((r) => r.state);
+    let reviewStatus = 'pending';
+    if (reviewStates.includes('approved')) reviewStatus = 'approved';
+    else if (reviewStates.includes('changes_requested')) reviewStatus = 'changes_requested';
+    else if (reviewStates.some((s) => ['approved', 'changes_requested', 'commented'].includes(s))) reviewStatus = 'reviewed';
+
+    return {
+      id: pr.id,
+      number: pr.number,
+      title: pr.title,
+      description: pr.body,
+      state: pr.state,
+      author: pr.user?.login,
+      authorAvatar: pr.user?.avatar_url,
+      authorUrl: pr.user?.html_url,
+      headBranch: pr.head?.ref,
+      headSha: pr.head?.sha,
+      baseBranch: pr.base?.ref,
+      baseSha: pr.base?.sha,
+      createdAt: pr.created_at,
+      updatedAt: pr.updated_at,
+      closedAt: pr.closed_at,
+      mergedAt: pr.merged_at,
+      isMerged: !!pr.merged_at,
+      labels: pr.labels?.map((l) => ({ name: l.name, color: l.color })),
+      milestone: pr.milestone ? { title: pr.milestone.title, number: pr.milestone.number } : null,
+      changedFiles: pr.changed_files,
+      additions: pr.additions,
+      deletions: pr.deletions,
+      comments: pr.comments,
+      reviewComments: pr.review_comments,
+      url: pr.html_url,
+      commitCount: commits.length,
+      commits,
+      files,
+      reviews,
+      reviewStatus,
+    };
+  }
+
   async getRepoFromGitHub(accessToken, fullName) {
     const result = await fetchFromGitHub(`/repos/${fullName}`, accessToken);
 

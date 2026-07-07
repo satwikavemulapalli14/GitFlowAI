@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Repositories from './pages/Repositories';
 import PullRequests from './pages/PullRequests';
+import PullRequestDetail from './pages/PullRequestDetail';
 import ReviewResults from './pages/ReviewResults';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
@@ -21,6 +22,8 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/repositories" element={<Repositories />} />
             <Route path="/pull-requests" element={<PullRequests />} />
+            <Route path="/pull-requests/:owner/:repo" element={<PullRequests />} />
+            <Route path="/pull-requests/:owner/:repo/:prNumber" element={<PullRequestDetail />} />
             <Route path="/review-results" element={<ReviewResults />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />
